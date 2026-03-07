@@ -233,7 +233,7 @@ def _register_blueprints(app: Flask) -> None:
 
         app.register_blueprint(auth_bp,   url_prefix="/api/auth")
         app.register_blueprint(detect_bp, url_prefix="/api")
-        app.register_blueprint(chat_bp,   url_prefix="/api")
+        app.register_blueprint(chat_bp,   url_prefix="/api/chat")
         app.register_blueprint(admin_bp,  url_prefix="/api/admin")
         app.register_blueprint(reports_bp, url_prefix="/api")
         app.register_blueprint(frontend_bp)
@@ -260,7 +260,7 @@ def _register_blueprints(app: Flask) -> None:
         # (module_path, blueprint_name, url_prefix)
         ("app.routes.auth",    "auth_bp",    "/api/auth"),
         ("app.routes.detect",  "detect_bp",  "/api"),
-        ("app.routes.chat",    "chat_bp",    "/api"),
+        ("app.routes.chat",    "chat_bp",    "/api/chat"),
         ("app.routes.admin",   "admin_bp",   "/api/admin"),
         ("app.routes.reports", "reports_bp", "/api/reports"),
     ]
