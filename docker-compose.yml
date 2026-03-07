@@ -1,0 +1,81 @@
+# =============================================================
+#  docker-compose.yml — Run PhishGuard with one command
+#
+#  CONCEPT: Docker & Docker Compose
+#
+#  Docker packages your app + all its dependencies into a
+#  "container" — a lightweight isolated environment that runs
+#  identically on any machine. No more "it works on my laptop".
+#
+#  Docker Compose defines MULTIPLE containers and how they
+#  talk to each other. PhishGuard has two services:
+#    backend  → Flask + Python (runs the API)
+#    frontend → Nginx (serves the HTML/CSS/JS files)
+#
+#  HOW TO USE:
+#    1. Install Docker Desktop: https://www.docker.com/products/docker-desktop
+#    2. From the project root:
+#         docker-compose up --build
+#    3. Open: http://localhost:5000  (API)
+#             http://localhost:8080  (Frontend)
+#    4. Stop:  docker-compose down
+#
+#  First run takes 2-3 minutes (downloads Python, installs packages).
+#  Subsequent runs start in seconds.
+# =============================================================
+
+version: "3.9"
+
+services:
+
+  # ── FLASK BACKEND ─────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.backend
+    container_name: phishguard-backend
+    ports:
+      - "5000:5000"        # host:container — visit localhost:5000
+    volumes:
+      - ./backend:/app     # live-reload: changes on disk → inside container
+      - ./backend/instance:/app/instance  # persist the SQLite database
+      - ./backend/ml/saved_models:/app/ml/saved_models  # persist trained model
+    environment:
+      - FLASK_ENV=development
+      - SECRET_KEY=change-me-in-production
+      - JWT_SECRET_KEY=change-me-in-production
+      # Optional — add your Slack webhook here:
+      # - SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
+    command: python run.py
+    restart: unless-stopped
+
+  # ── NGINX FRONTEND ────────────────────────────────────────
+  frontend:
+    image: nginx:alpine   # tiny pre-built Nginx image (~25MB)
+    container_name: phishguard-frontend
+    ports:
+      - "8080:80"          # visit localhost:8080
+    volumes:
+      - ./frontend:/usr/share/nginx/html  # serve our HTML files
+    depends_on:
+      - backend            # start backend before frontend
+    restart: unless-stopped
+
+# =============================================================
+#  To add a real database (PostgreSQL) for production,
+#  uncomment this section and update SQLALCHEMY_DATABASE_URI:
+#
+#  db:
+#    image: postgres:16-alpine
+#    environment:
+#      POSTGRES_DB: phishguard
+#      POSTGRES_USER: pguser
+#      POSTGRES_PASSWORD: pgpassword
+#    volumes:
+#      - postgres_data:/var/lib/postgresql/data
+#    ports:
+#      - "5432:5432"
+#
+# volumes:
+#   postgres_data:
+# =============================================================

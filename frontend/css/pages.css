@@ -1,0 +1,199 @@
+/* =============================================================
+   frontend/css/pages.css — Page-specific styles
+   ============================================================= */
+
+/* ── LOGIN PAGE ── */
+.login-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 0%, rgba(0,212,255,0.06) 0%, transparent 70%),
+    var(--bg);
+}
+.login-box {
+  width: 100%;
+  max-width: 420px;
+  border: 1px solid var(--border2);
+  background: var(--surface);
+  padding: 3rem 2.5rem;
+  position: relative;
+}
+.login-box::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+.login-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+.login-logo svg { width: 40px; height: 40px; color: var(--accent); }
+.login-logo h1  { font-size: 1.4rem; }
+.login-logo span { color: var(--accent); }
+.login-subtitle {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 2rem;
+}
+.login-error {
+  color: var(--danger);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+/* ── ANALYZER PAGE ── */
+.detect-result {
+  display: none;
+  margin-top: 1.5rem;
+  border: 1px solid var(--border2);
+  background: var(--surface2);
+}
+.detect-result.visible { display: block; animation: fadeIn 0.3s ease; }
+
+.result-header {
+  padding: 1.25rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-start;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+.verdict-label {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+.verdict-text {
+  font-family: var(--font-sans);
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.verdict-text.phishing { color: var(--danger); }
+.verdict-text.safe     { color: var(--safe);   }
+.score-big {
+  font-family: var(--font-mono);
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 0.5rem;
+}
+.result-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+.meta-item { font-family: var(--font-mono); font-size: 0.65rem; }
+.meta-key  { color: var(--text-dim); }
+.meta-val  { color: var(--text); }
+
+.explanation-item {
+  padding: 0.6rem 0.75rem;
+  border-left: 2px solid var(--border2);
+  margin-bottom: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+.explanation-item.danger { border-left-color: var(--danger); background: rgba(255,59,92,0.04); }
+.explanation-item.warn   { border-left-color: var(--warn);   background: rgba(255,170,0,0.04); }
+.explanation-item.ok     { border-left-color: var(--safe);   background: rgba(0,230,118,0.04); }
+
+/* ── CHAT PAGE ── */
+.chat-messages {
+  height: 420px;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+.chat-messages::-webkit-scrollbar       { width: 4px; }
+.chat-messages::-webkit-scrollbar-track { background: transparent; }
+.chat-messages::-webkit-scrollbar-thumb { background: var(--border2); }
+
+.chat-msg {
+  max-width: 80%;
+  padding: 0.75rem 1rem;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+.chat-msg.bot  {
+  align-self: flex-start;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  color: var(--text);
+}
+.chat-msg.user {
+  align-self: flex-end;
+  background: rgba(0,212,255,0.08);
+  border: 1px solid rgba(0,212,255,0.2);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+.chat-input-row {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+.chat-input-row input { flex: 1; }
+
+/* ── QUARANTINE PAGE ── */
+.quarantine-banner {
+  background: var(--danger-dim);
+  border: 1px solid rgba(255,59,92,0.3);
+  border-left: 3px solid var(--danger);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--danger);
+}
+
+/* ── REPORTS PAGE ── */
+.report-metric {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  padding: 1rem;
+  text-align: center;
+}
+.report-metric-value {
+  font-family: var(--font-mono);
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.report-metric-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-top: 0.3rem;
+}
+
+/* ── CHART CONTAINERS ── */
+.chart-wrap {
+  position: relative;
+  width: 100%;
+  height: 220px;
+}

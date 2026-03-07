@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>PhishGuard — Quarantine</title>
+  <link rel="stylesheet" href="/css/variables.css" />
+  <link rel="stylesheet" href="/css/base.css" />
+  <link rel="stylesheet" href="/css/components.css" />
+  <link rel="stylesheet" href="/css/layout.css" />
+  <link rel="stylesheet" href="/css/animations.css" />
+  <link rel="stylesheet" href="/css/pages.css" />
+  <style>
+    /* ── Detail slide-in panel ──────────────────────────────── */
+    .detail-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.6);
+      z-index: 200;
+    }
+    .detail-overlay.open { display: block; }
+    .detail-panel {
+      position: fixed;
+      top: 0; right: 0;
+      width: min(600px, 92vw);
+      height: 100vh;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      padding: 2rem;
+      overflow-y: auto;
+      animation: slideInRight .2s ease;
+      z-index: 201;
+    }
+    @keyframes slideInRight {
+      from { transform: translateX(100%); }
+      to   { transform: translateX(0); }
+    }
+    .detail-close {
+      position: absolute;
+      top: 1rem; right: 1.25rem;
+      background: none; border: none;
+      color: var(--text-dim); font-size: 1.4rem;
+      cursor: pointer; line-height: 1;
+    }
+    .detail-close:hover { color: var(--text); }
+    .detail-field { margin-bottom: 1rem; }
+    .detail-label {
+      font-family: var(--font-mono);
+      font-size: .68rem;
+      color: var(--text-dim);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      margin-bottom: .3rem;
+    }
+    .detail-value {
+      color: var(--text);
+      font-size: .88rem;
+      line-height: 1.6;
+    }
+    .email-body-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+      font-size: .82rem;
+      line-height: 1.7;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .explanation-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .explanation-list li {
+      padding: .35rem 0;
+      font-size: .82rem;
+      border-bottom: 1px solid var(--border);
+      line-height: 1.5;
+    }
+    .explanation-list li:last-child { border-bottom: none; }
+
+    /* ── Risk meter ─────────────────────────────────────────── */
+    .risk-bar-wrap {
+      background: var(--surface2);
+      border-radius: 4px;
+      height: 8px;
+      margin-top: .5rem;
+      overflow: hidden;
+    }
+    .risk-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width .6s ease;
+    }
+
+    /* ── Workflow explainer ─────────────────────────────────── */
+    .workflow-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .workflow-box h4 {
+      font-family: var(--font-mono);
+      font-size: .75rem;
+      color: var(--accent);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      margin-bottom: .75rem;
+    }
+    .workflow-steps {
+      display: flex;
+      gap: 0;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: .5rem;
+    }
+    .workflow-step {
+      font-family: var(--font-mono);
+      font-size: .72rem;
+      padding: .3rem .7rem;
+      border-radius: 4px;
+      border: 1px solid;
+    }
+    .step-quarantine { color: var(--danger); border-color: var(--danger); background: var(--danger-dim); }
+    .step-review     { color: var(--warn);   border-color: var(--warn);   background: var(--warn-dim);   }
+    .step-resolve    { color: var(--safe);   border-color: var(--safe);   background: var(--safe-dim);   }
+    .step-arrow      { color: var(--text-dim); font-size: .9rem; }
+
+    /* ── Clickable rows ─────────────────────────────────────── */
+    .data-table tbody tr { cursor: pointer; }
+    .data-table tbody tr:hover td { background: var(--surface2); }
+  </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <a class="topbar-logo" href="/dashboard">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V7L12 2z"/>
+      <path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>Phish<span>Guard</span>
+  </a>
+  <div class="topbar-right">
+    <span class="model-status"><span class="status-dot"></span>MODEL ONLINE</span>
+    <span class="user-badge">Signed in as <b id="topbar-username">—</b></span>
+    <button class="btn btn-ghost btn-sm" onclick="Auth.logout()">Logout</button>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="nav-section">
+    <div class="nav-label">Main</div>
+    <a class="nav-item" href="/dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Dashboard</a>
+    <a class="nav-item" href="/detect"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Detect Email</a>
+    <a class="nav-item" href="/chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Security Chat</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Admin</div>
+    <a class="nav-item" href="/alerts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>Alerts</a>
+    <a class="nav-item active" href="/quarantine"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>Quarantine</a>
+    <a class="nav-item" href="/users"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Users</a>
+    <a class="nav-item" href="/reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>Reports</a>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="page-header">
+    <div>
+      <h2>Quarantine</h2>
+      <p class="text-mono text-sm text-dim">Phishing emails held for review before action is taken</p>
+    </div>
+  </div>
+
+  <!-- Workflow explainer -->
+  <div class="workflow-box">
+    <h4>How Quarantine Works</h4>
+    <div class="workflow-steps">
+      <span class="workflow-step step-quarantine">🔒 Quarantined</span>
+      <span class="step-arrow">→</span>
+      <span class="workflow-step step-review">👁 Analyst Reviews</span>
+      <span class="step-arrow">→</span>
+      <span class="workflow-step step-resolve">✓ True Phishing: keep quarantined + resolve alert</span>
+      <br style="width:100%">
+      <span style="width:100%;padding-left:7rem;font-family:var(--font-mono);font-size:.7rem;color:var(--text-dim);">
+        or → False Positive: mark safe, release to user, resolve alert
+      </span>
+    </div>
+    <p style="margin-top:.75rem;font-size:.8rem;color:var(--text-dim);line-height:1.6;">
+      <b style="color:var(--text);">Why not auto-delete?</b>
+      ML models aren't perfect. A false positive (legitimate email wrongly flagged)
+      could make someone miss an important message. Human review before any action
+      is the professional standard in enterprise security.
+    </p>
+  </div>
+
+  <!-- Quarantine table -->
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">Quarantined Emails <span id="q-count" class="text-dim text-sm"></span></span>
+      <div style="display:flex;gap:.5rem;">
+        <select id="filter-status" onchange="loadQuarantine()"
+          style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:.72rem;padding:.2rem .4rem;border-radius:4px;">
+          <option value="quarantined">Quarantined</option>
+          <option value="">All phishing</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="loadQuarantine()">Refresh</button>
+      </div>
+    </div>
+    <p class="text-dim text-sm" style="padding:.5rem 1rem;font-family:var(--font-mono);">
+      👆 Click any row to read the full email and take action
+    </p>
+    <div style="overflow-x:auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th><th>Subject</th><th>Sender</th>
+            <th>Risk</th><th>Status</th><th>Scanned</th><th>User</th>
+          </tr>
+        </thead>
+        <tbody id="quarantine-tbody">
+          <tr><td colspan="7" class="text-dim text-center text-mono" style="padding:2rem;">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL PANEL -->
+<div class="detail-overlay" id="detail-overlay" onclick="closeDetail(event)">
+  <div class="detail-panel" id="detail-panel">
+    <button class="detail-close" onclick="closeDetail()">✕</button>
+
+    <div class="detail-field">
+      <div class="detail-label">Verdict</div>
+      <div id="d-verdict"></div>
+    </div>
+    <div style="display:flex;gap:1.5rem;margin-bottom:1rem;">
+      <div class="detail-field" style="flex:1;">
+        <div class="detail-label">Risk Score</div>
+        <div id="d-risk" style="font-size:1.5rem;font-family:var(--font-mono);font-weight:700;"></div>
+        <div class="risk-bar-wrap"><div class="risk-bar-fill" id="d-risk-bar"></div></div>
+      </div>
+      <div class="detail-field" style="flex:1;">
+        <div class="detail-label">Status</div>
+        <div id="d-status"></div>
+      </div>
+    </div>
+    <div class="detail-field">
+      <div class="detail-label">Subject</div>
+      <div class="detail-value" id="d-subject"></div>
+    </div>
+    <div class="detail-field">
+      <div class="detail-label">Sender</div>
+      <div class="detail-value" id="d-sender"></div>
+    </div>
+    <div class="detail-field">
+      <div class="detail-label">Scanned</div>
+      <div class="detail-value text-mono" id="d-time" style="font-size:.78rem;"></div>
+    </div>
+    <div class="detail-field">
+      <div class="detail-label">Why PhishGuard flagged this</div>
+      <ul class="explanation-list" id="d-explanations"></ul>
+    </div>
+    <div class="detail-field">
+      <div class="detail-label">Email Body</div>
+      <div class="email-body-box" id="d-body">—</div>
+    </div>
+    <div style="display:flex;gap:.75rem;margin-top:1.5rem;" id="d-actions"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/utils.js"></script>
+<script>
+  if (!Auth.requireAnalyst()) throw new Error('redirect');
+  Utils.setupTopbar();
+
+  let _currentScanId = null;
+
+  // ── Load quarantine table ─────────────────────────────────
+  async function loadQuarantine() {
+    const status = document.getElementById('filter-status').value;
+    const tbody  = document.getElementById('quarantine-tbody');
+    tbody.innerHTML = `<tr><td colspan="7" class="text-dim text-center text-mono" style="padding:2rem;">Loading…</td></tr>`;
+
+    let url = `/api/admin/scans?is_phishing=true&limit=50`;
+    if (status) url += `&status=${status}`;
+
+    const res = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
+    }).then(r => r.json());
+
+    if (!res || res.status !== 'success') {
+      tbody.innerHTML = `<tr><td colspan="7" class="text-dim text-center">Failed to load.</td></tr>`;
+      return;
+    }
+
+    const scans = res.data.scans;
+    document.getElementById('q-count').textContent = `(${res.data.total})`;
+
+    if (!scans.length) {
+      tbody.innerHTML = `<tr><td colspan="7" class="text-dim text-center text-mono" style="padding:2rem;">
+        No quarantined emails. 🎉 Your inbox is clean.
+      </td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = scans.map(s => {
+      const score = s.risk_score || 0;
+      const color = score >= 80 ? 'var(--danger)' : score >= 60 ? 'var(--warn)' : 'var(--accent)';
+      const subject = s.email_subject || '(no subject)';
+      const sender  = s.email_sender  || '(unknown)';
+      const preview = subject.length > 45 ? subject.slice(0,45)+'…' : subject;
+      const time    = s.scanned_at ? new Date(s.scanned_at).toLocaleString() : '—';
+
+      const statusColor = {
+        quarantined: 'var(--danger)',
+        safe:        'var(--safe)',
+        pending:     'var(--warn)',
+        reviewed:    'var(--accent)',
+      }[s.status] || 'var(--text-dim)';
+
+      return `<tr onclick="openDetail(${s.id})">
+        <td class="text-mono">#${s.id}</td>
+        <td><b style="font-size:.85rem;">${preview}</b></td>
+        <td class="text-dim text-mono" style="font-size:.75rem;">${sender}</td>
+        <td style="color:${color};font-family:var(--font-mono);font-weight:700;">${score}/100</td>
+        <td style="color:${statusColor};font-family:var(--font-mono);font-size:.72rem;">${s.status}</td>
+        <td class="text-dim text-mono" style="font-size:.72rem;">${time}</td>
+        <td class="text-dim" style="font-size:.78rem;">${s.user_id ? 'User #'+s.user_id : '—'}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ── Open detail panel ─────────────────────────────────────
+  async function openDetail(scanId) {
+    _currentScanId = scanId;
+    document.getElementById('detail-overlay').classList.add('open');
+
+    // Show loading state
+    document.getElementById('d-body').textContent       = 'Loading…';
+    document.getElementById('d-subject').textContent    = '—';
+    document.getElementById('d-sender').textContent     = '—';
+    document.getElementById('d-explanations').innerHTML = '';
+    document.getElementById('d-actions').innerHTML      = '';
+
+    const res = await fetch(`/api/admin/scans/${scanId}`, {
+      headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
+    }).then(r => r.json());
+
+    if (!res || res.status !== 'success') {
+      document.getElementById('d-body').textContent = 'Failed to load scan details.';
+      return;
+    }
+
+    const s     = res.data;
+    const score = s.risk_score || 0;
+    const color = score >= 80 ? 'var(--danger)' : score >= 60 ? 'var(--warn)' : 'var(--safe)';
+
+    // Verdict
+    document.getElementById('d-verdict').innerHTML = s.is_phishing
+      ? `<span style="color:var(--danger);font-family:var(--font-mono);font-weight:700;font-size:1rem;">🚨 PHISHING DETECTED</span>`
+      : `<span style="color:var(--safe);font-family:var(--font-mono);font-weight:700;font-size:1rem;">✅ SAFE</span>`;
+
+    // Risk score + bar
+    document.getElementById('d-risk').innerHTML = `<span style="color:${color}">${score}</span><span style="color:var(--text-dim);font-size:.8rem;">/100</span>`;
+    const bar = document.getElementById('d-risk-bar');
+    bar.style.width      = score + '%';
+    bar.style.background = color;
+
+    // Status
+    const statusColors = { quarantined:'var(--danger)', safe:'var(--safe)', pending:'var(--warn)', reviewed:'var(--accent)' };
+    document.getElementById('d-status').innerHTML =
+      `<span style="color:${statusColors[s.status]||'var(--text-dim)'};font-family:var(--font-mono);font-size:.8rem;">
+        ${(s.status||'unknown').toUpperCase()}
+      </span>`;
+
+    // Fields
+    document.getElementById('d-subject').textContent = s.email_subject || '(no subject)';
+    document.getElementById('d-sender').textContent  = s.email_sender  || '(unknown sender)';
+    document.getElementById('d-time').textContent    = s.scanned_at
+      ? new Date(s.scanned_at).toLocaleString()
+      : '—';
+
+    // Explanations
+    const explanations = s.explanation || [];
+    document.getElementById('d-explanations').innerHTML = explanations.length
+      ? explanations.map(e => `<li>${e}</li>`).join('')
+      : '<li class="text-dim">No explanations recorded.</li>';
+
+    // Body
+    document.getElementById('d-body').textContent =
+      s.email_body || s.body || '(email body not stored)';
+
+    // Actions
+    const actionsEl = document.getElementById('d-actions');
+    if (s.status === 'quarantined') {
+      actionsEl.innerHTML = `
+        <button class="btn btn-ghost btn-sm" style="color:var(--safe);border-color:var(--safe);"
+          onclick="releaseEmail(${s.id})">
+          ✓ False Positive — Release to User
+        </button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:var(--danger);"
+          onclick="confirmDelete(${s.id})">
+          🗑 Confirmed Phishing — Delete
+        </button>`;
+    } else {
+      actionsEl.innerHTML = `<span class="text-dim text-mono" style="font-size:.78rem;">No actions available for status: ${s.status}</span>`;
+    }
+  }
+
+  function closeDetail(e) {
+    if (e && e.target !== document.getElementById('detail-overlay')) return;
+    document.getElementById('detail-overlay').classList.remove('open');
+    _currentScanId = null;
+  }
+
+  // ── Release a false positive ──────────────────────────────
+  async function releaseEmail(scanId) {
+    const res = await fetch(`/api/admin/scans/${scanId}`, {
+      method:  'PATCH',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${Auth.getToken()}`,
+      },
+      body: JSON.stringify({ status: 'safe' }),
+    }).then(r => r.json());
+
+    if (res.status === 'success') {
+      Utils.toast('Email released — marked as safe.');
+      document.getElementById('detail-overlay').classList.remove('open');
+      loadQuarantine();
+    } else {
+      Utils.toast('Failed: ' + (res.message || 'unknown error'), true);
+    }
+  }
+
+  // ── Confirm phishing delete ───────────────────────────────
+  async function confirmDelete(scanId) {
+    if (!confirm('Confirm: this is real phishing. Mark as reviewed.')) return;
+    const res = await fetch(`/api/admin/scans/${scanId}`, {
+      method:  'PATCH',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${Auth.getToken()}`,
+      },
+      body: JSON.stringify({ status: 'reviewed' }),
+    }).then(r => r.json());
+
+    if (res.status === 'success') {
+      Utils.toast('Confirmed phishing — marked as reviewed.');
+      document.getElementById('detail-overlay').classList.remove('open');
+      loadQuarantine();
+    } else {
+      Utils.toast('Failed: ' + (res.message || 'unknown error'), true);
+    }
+  }
+
+  loadQuarantine();
+</script>
+</body>
+</html>

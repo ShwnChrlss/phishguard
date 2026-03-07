@@ -1,0 +1,71 @@
+{
+  "model_name": "random_forest",
+  "trained_at": "2026-03-03T16:41:59.494716",
+  "metrics": {
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0,
+    "roc_auc": 1.0,
+    "confusion_matrix": [
+      [
+        4,
+        0
+      ],
+      [
+        0,
+        4
+      ]
+    ],
+    "true_negatives": 4,
+    "false_positives": 0,
+    "false_negatives": 0,
+    "true_positives": 4,
+    "cv_f1_mean": 0.9,
+    "cv_f1_std": 0.2,
+    "training_time_seconds": 0.57,
+    "n_train": 32,
+    "n_test": 8,
+    "model_name": "random_forest",
+    "trained_at": "2026-03-03T16:41:59.494716"
+  },
+  "n_features": 140,
+  "n_tfidf_features": 5000,
+  "feature_extractor_features": [
+    "url_count",
+    "has_ip_url",
+    "has_at_in_url",
+    "has_url_shortener",
+    "has_suspicious_tld",
+    "max_url_length",
+    "urls_per_100_chars",
+    "has_lookalike_domain",
+    "has_hyperlink_mismatch",
+    "max_subdomain_depth",
+    "urgency_word_count",
+    "has_time_pressure",
+    "has_account_threat",
+    "reward_word_count",
+    "has_winner_pattern",
+    "sensitive_word_count",
+    "has_password_request",
+    "has_form_request",
+    "caps_ratio",
+    "exclamation_count",
+    "question_count",
+    "has_generic_greeting",
+    "word_count",
+    "char_count",
+    "text_entropy",
+    "html_tag_count",
+    "has_hidden_text",
+    "has_base64_content",
+    "img_tag_count",
+    "form_tag_count",
+    "has_zero_fontsize",
+    "impersonated_brand_count",
+    "has_financial_brand",
+    "has_dangerous_attachment",
+    "has_download_request"
+  ]
+}

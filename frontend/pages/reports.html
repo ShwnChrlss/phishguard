@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>PhishGuard — Reports</title>
+  <link rel="stylesheet" href="/css/variables.css" />
+  <link rel="stylesheet" href="/css/base.css" />
+  <link rel="stylesheet" href="/css/components.css" />
+  <link rel="stylesheet" href="/css/layout.css" />
+  <link rel="stylesheet" href="/css/animations.css" />
+  <link rel="stylesheet" href="/css/pages.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="topbar">
+  <a class="topbar-logo" href="/dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V7L12 2z"/><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>Phish<span>Guard</span></a>
+  <div class="topbar-right">
+    <span class="user-badge">Signed in as <b id="topbar-username">—</b></span>
+    <button class="btn btn-ghost btn-sm" onclick="Auth.logout()">Logout</button>
+  </div>
+</div>
+<div class="sidebar">
+  <div class="nav-section">
+    <div class="nav-label">Main</div>
+    <a class="nav-item" href="/dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Dashboard</a>
+    <a class="nav-item" href="/detect"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Detect Email</a>
+    <a class="nav-item" href="/chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Security Chat</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Admin</div>
+    <a class="nav-item" href="/alerts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>Alerts</a>
+    <a class="nav-item" href="/quarantine"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>Quarantine</a>
+    <a class="nav-item" href="/users"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Users</a>
+    <a class="nav-item active" href="/reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>Reports</a>
+  </div>
+</div>
+<div class="main">
+  <div class="page-header">
+    <h2>Reports</h2>
+    <p class="text-mono text-sm text-dim">Security posture overview and analytics</p>
+  </div>
+
+  <div class="stats-grid stagger" id="report-metrics">
+    <div class="report-metric"><div class="report-metric-value" id="rpt-total">—</div><div class="report-metric-label">Total Scans</div></div>
+    <div class="report-metric"><div class="report-metric-value" id="rpt-rate" style="color:var(--danger)">—</div><div class="report-metric-label">Detection Rate</div></div>
+    <div class="report-metric"><div class="report-metric-value" id="rpt-quarantine" style="color:var(--warn)">—</div><div class="report-metric-label">Quarantined</div></div>
+    <div class="report-metric"><div class="report-metric-value" id="rpt-users" style="color:var(--safe)">—</div><div class="report-metric-label">Active Users</div></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title">Phishing vs Safe</span></div>
+      <div class="panel-body"><div class="chart-wrap"><canvas id="rpt-donut"></canvas></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title">Alert Severity Breakdown</span></div>
+      <div class="panel-body"><div class="chart-wrap"><canvas id="rpt-severity"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">Summary</span>
+      <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 Print</button>
+    </div>
+    <div class="panel-body" id="rpt-summary">
+      <div class="loading"><div class="spinner"></div>Loading...</div>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/utils.js"></script>
+<script src="/js/charts.js"></script>
+<script>
+  if (!Auth.requireAnalyst()) throw new Error('redirect');
+  Utils.setupTopbar();
+
+  async function loadReport() {
+    const { ok, data } = await API.getDashboard();
+    if (!ok) return;
+
+    const s = data.data.stats;
+    document.getElementById('rpt-total').textContent     = s.total_scans;
+    document.getElementById('rpt-rate').textContent      = s.detection_rate + '%';
+    document.getElementById('rpt-quarantine').textContent = s.total_quarantine;
+    document.getElementById('rpt-users').textContent     = s.total_users;
+
+    Charts.donut('rpt-donut', s.total_phishing, s.total_safe);
+
+    // Alert severity chart (placeholder data — will fill in Phase 6)
+    Charts.donut('rpt-severity', s.critical_alerts, Math.max(s.pending_alerts - s.critical_alerts, 0));
+
+    document.getElementById('rpt-summary').innerHTML = `
+      <p style="font-family:var(--font-mono);font-size:0.82rem;line-height:2;color:var(--text-dim);">
+        <b style="color:var(--text);">Generated:</b> ${new Date().toLocaleString()}<br>
+        <b style="color:var(--text);">Total emails scanned:</b> ${s.total_scans}<br>
+        <b style="color:var(--text);">Phishing detected:</b> ${s.total_phishing} (${s.detection_rate}%)<br>
+        <b style="color:var(--text);">Emails safe:</b> ${s.total_safe}<br>
+        <b style="color:var(--text);">Quarantined:</b> ${s.total_quarantine}<br>
+        <b style="color:var(--text);">Active users:</b> ${s.total_users}<br>
+        <b style="color:var(--text);">Pending alerts:</b> ${s.pending_alerts}<br>
+        <b style="color:var(--text);">Critical alerts:</b> ${s.critical_alerts}<br>
+      </p>
+    `;
+  }
+
+  loadReport();
+</script>
+</body>
+</html>

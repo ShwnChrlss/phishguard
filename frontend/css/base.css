@@ -1,0 +1,109 @@
+/* =============================================================
+   frontend/css/base.css — Reset + typography + global elements
+   ============================================================= */
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Subtle scanline texture */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(
+    0deg, transparent, transparent 2px,
+    rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+h1,h2,h3,h4 {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.5rem 0;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="email"],
+textarea,
+select {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  padding: 0.75rem 1rem;
+  outline: none;
+  transition: border-color 0.2s;
+  border-radius: var(--radius);
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: var(--accent);
+}
+
+textarea { resize: vertical; min-height: 120px; }
+
+label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.form-group { margin-bottom: 1.25rem; }
+
+/* Utility classes */
+.text-accent  { color: var(--accent); }
+.text-danger  { color: var(--danger); }
+.text-safe    { color: var(--safe); }
+.text-warn    { color: var(--warn); }
+.text-dim     { color: var(--text-dim); }
+.text-muted   { color: var(--text-muted); }
+.text-mono    { font-family: var(--font-mono); }
+.text-sm      { font-size: 0.75rem; }
+.text-xs      { font-size: 0.65rem; }
+.text-white   { color: #fff; }
+
+.flex              { display: flex; }
+.flex-col          { flex-direction: column; }
+.items-center      { align-items: center; }
+.justify-between   { justify-content: space-between; }
+.justify-center    { justify-content: center; }
+.gap-1             { gap: 0.5rem; }
+.gap-2             { gap: 1rem; }
+.gap-3             { gap: 1.5rem; }
+.w-full            { width: 100%; }
+.mt-1              { margin-top: 0.5rem; }
+.mt-2              { margin-top: 1rem; }
+.mt-3              { margin-top: 1.5rem; }
+.mb-1              { margin-bottom: 0.5rem; }
+.mb-2              { margin-bottom: 1rem; }
+.truncate          { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hidden            { display: none !important; }

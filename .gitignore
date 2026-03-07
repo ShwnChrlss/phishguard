@@ -1,0 +1,67 @@
+# =============================================================
+#  .gitignore — Files Git should NEVER track
+#  Place this file at your project ROOT (phishguard/.gitignore)
+#
+#  WHY this matters:
+#    Git tracks every file by default. Some files must NEVER
+#    be committed: secret keys, databases with real data,
+#    compiled bytecode, and dependency folders (venv).
+#    This file tells Git to ignore them.
+# =============================================================
+
+# ── SECRETS (CRITICAL — never commit these) ───────────────────
+.env
+*.pem
+*.key
+google_credentials.json
+
+# ── PYTHON BYTECODE ───────────────────────────────────────────
+# Python creates .pyc files as compiled cache. They're
+# machine-specific and regenerated automatically. No need to track.
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# ── VIRTUAL ENVIRONMENT ───────────────────────────────────────
+# The venv/ folder can be 100MB+. Anyone can recreate it with
+# pip install -r requirements.txt. Never commit it.
+venv/
+.venv/
+env/
+
+# ── DATABASE FILES ────────────────────────────────────────────
+# Development databases have test data. Production databases
+# have real user data. Neither belongs in Git.
+*.db
+*.sqlite
+*.sqlite3
+
+# ── TRAINED ML MODELS ────────────────────────────────────────
+# .pkl files can be hundreds of MB. Use a separate storage
+# system (S3, Google Drive) for model artifacts.
+backend/ml/saved_models/*.pkl
+backend/ml/saved_models/*.joblib
+
+# ── JUPYTER NOTEBOOKS (optional) ─────────────────────────────
+# Checkpoints are auto-generated, not source files.
+.ipynb_checkpoints/
+
+# ── FLASK / TESTING ───────────────────────────────────────────
+instance/
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# ── OS FILES ──────────────────────────────────────────────────
+.DS_Store           # Mac Finder metadata
+Thumbs.db           # Windows thumbnail cache
+desktop.ini
+
+# ── IDE FILES ─────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp
+*.swo

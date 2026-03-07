@@ -1,0 +1,44 @@
+{
+  // ==========================================================
+  //  pyrightconfig.json
+  //  Tells VS Code's Pylance type checker where to find
+  //  Python packages in this project.
+  //
+  //  Place this file at your PROJECT ROOT: phishguard/
+  //
+  //  WHY THIS FILE EXISTS:
+  //    VS Code analyses each file in isolation. When Pylance
+  //    reads scripts/seed_database.py and sees:
+  //      from app import create_app
+  //    It looks for 'app' relative to scripts/ — and finds nothing.
+  //
+  //    "extraPaths" tells Pylance: "also search inside backend/
+  //    when resolving imports." Now it finds backend/app/ correctly.
+  //
+  //  This file only affects VS Code warnings. It does NOT affect
+  //  how Python actually runs your code at the terminal.
+  // ==========================================================
+
+  "extraPaths": [
+    "backend"
+  ],
+
+  // Which Python interpreter to use (your virtual environment).
+  // Adjust the path if your venv folder has a different name.
+  "venvPath": "backend",
+  "venv": "venv",
+
+  // "basic" checks for obvious errors without being strict.
+  // Change to "standard" or "strict" as you get more confident.
+  "typeCheckingMode": "off",
+
+  // Suppress warnings for third-party packages that don't ship
+  // type stubs (like flask_sqlalchemy, bcrypt). These are safe
+  // to use — they just don't have type annotations.
+  "reportMissingModuleSource": "none",
+  "reportMissingImports": "none",
+  "reportUnknownMemberType": "none",
+  "reportUnknownVariableType": "none",
+  "reportUnknownArgumentType": "none",
+  "reportAttributeAccessIssue": "none"
+}

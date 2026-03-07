@@ -1,0 +1,26 @@
+:root {
+  --bg:          #0a0c0f;
+  --surface:     #111418;
+  --surface2:    #181c22;
+  --border:      #1e2530;
+  --border2:     #252d3a;
+  --text:        #c8d6e8;
+  --text-dim:    #5a6a80;
+  --text-muted:  #3a4a5c;
+  --accent:      #00d4ff;
+  --accent-dark: #0099cc;
+  --danger:      #ff3b5c;
+  --danger-dim:  #3a0d15;
+  --warn:        #ffaa00;
+  --warn-dim:    #2a1f00;
+  --safe:        #00e676;
+  --safe-dim:    #002a15;
+  --critical:    #ff3b5c;
+  --high:        #ff6b35;
+  --medium:      #ffaa00;
+  --low:         #00d4ff;
+  --font-mono:   'Space Mono', monospace;
+  --font-sans:   'Syne', sans-serif;
+  --topbar-h:    56px;
+  --sidebar-w:   200px;
+}

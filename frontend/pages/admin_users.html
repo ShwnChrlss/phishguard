@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>PhishGuard — Users</title>
+  <link rel="stylesheet" href="/css/variables.css" />
+  <link rel="stylesheet" href="/css/base.css" />
+  <link rel="stylesheet" href="/css/components.css" />
+  <link rel="stylesheet" href="/css/layout.css" />
+  <link rel="stylesheet" href="/css/animations.css" />
+  <link rel="stylesheet" href="/css/pages.css" />
+  <style>
+    /* ── Modal overlay ──────────────────────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.7);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 420px;
+      animation: fadeIn .15s ease;
+    }
+    .modal h3 {
+      font-family: var(--font-mono);
+      color: var(--accent);
+      margin-bottom: 1.25rem;
+      font-size: .85rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    .modal-footer {
+      display: flex;
+      gap: .75rem;
+      margin-top: 1.25rem;
+      justify-content: flex-end;
+    }
+
+    /* ── Role badge colours ─────────────────────────────────── */
+    .role-admin   { color: var(--danger);  font-weight: 600; }
+    .role-analyst { color: var(--warn);    font-weight: 600; }
+    .role-user    { color: var(--accent);  font-weight: 600; }
+
+    /* ── Inline role selector in table ─────────────────────── */
+    .role-select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: .72rem;
+      padding: .2rem .4rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .role-select:focus { outline: 1px solid var(--accent); }
+
+    /* ── Status pill ────────────────────────────────────────── */
+    .pill-active   { color: var(--safe);   font-family: var(--font-mono); font-size:.72rem; }
+    .pill-inactive { color: var(--danger); font-family: var(--font-mono); font-size:.72rem; }
+
+    /* ── Action buttons in table ────────────────────────────── */
+    .action-row { display: flex; gap: .4rem; flex-wrap: wrap; }
+
+    /* ── Permission matrix (what each role can see) ─────────── */
+    .perm-table { width:100%; border-collapse:collapse; font-size:.78rem; }
+    .perm-table th, .perm-table td {
+      padding: .5rem .75rem;
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+    }
+    .perm-table th { color: var(--text-dim); font-family: var(--font-mono); font-weight:400; }
+    .perm-table td:first-child { text-align:left; color: var(--text); }
+    .perm-yes { color: var(--safe); }
+    .perm-no  { color: var(--text-muted); }
+  </style>
+</head>
+<body>
+
+<!-- ── TOPBAR ──────────────────────────────────────────────── -->
+<div class="topbar">
+  <a class="topbar-logo" href="/dashboard">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V7L12 2z"/>
+      <path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    Phish<span>Guard</span>
+  </a>
+  <div class="topbar-right">
+    <span class="model-status"><span class="status-dot"></span>MODEL ONLINE</span>
+    <span class="user-badge">Signed in as <b id="topbar-username">—</b></span>
+    <button class="btn btn-ghost btn-sm" onclick="Auth.logout()">Logout</button>
+  </div>
+</div>
+
+<!-- ── SIDEBAR ─────────────────────────────────────────────── -->
+<div class="sidebar">
+  <div class="nav-section">
+    <div class="nav-label">Main</div>
+    <a class="nav-item" href="/dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Dashboard</a>
+    <a class="nav-item" href="/detect"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Detect Email</a>
+    <a class="nav-item" href="/chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Security Chat</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Admin</div>
+    <a class="nav-item" href="/alerts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>Alerts</a>
+    <a class="nav-item" href="/quarantine"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>Quarantine</a>
+    <a class="nav-item active" href="/users"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Users</a>
+    <a class="nav-item" href="/reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>Reports</a>
+  </div>
+</div>
+
+<!-- ── MAIN ────────────────────────────────────────────────── -->
+<div class="main">
+  <div class="page-header">
+    <div>
+      <h2>User Management</h2>
+      <p class="text-mono text-sm text-dim">Manage accounts, roles and access control</p>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="openCreateModal()">+ New User</button>
+  </div>
+
+  <!-- Role permissions reference -->
+  <div class="panel" style="margin-bottom:1.5rem;">
+    <div class="panel-header">
+      <span class="panel-title">Role Permissions</span>
+      <span class="text-dim text-sm text-mono">What each role can access</span>
+    </div>
+    <table class="perm-table">
+      <thead>
+        <tr>
+          <th style="text-align:left">Feature</th>
+          <th>User</th>
+          <th>Analyst</th>
+          <th>Admin</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Dashboard (own stats)</td>     <td class="perm-yes">✓</td><td class="perm-yes">✓</td><td class="perm-yes">✓</td></tr>
+        <tr><td>Detect / Scan emails</td>      <td class="perm-yes">✓</td><td class="perm-yes">✓</td><td class="perm-yes">✓</td></tr>
+        <tr><td>Security chatbot</td>          <td class="perm-yes">✓</td><td class="perm-yes">✓</td><td class="perm-yes">✓</td></tr>
+        <tr><td>View own scan history</td>     <td class="perm-yes">✓</td><td class="perm-yes">✓</td><td class="perm-yes">✓</td></tr>
+        <tr><td>View ALL scans (admin panel)</td><td class="perm-no">✗</td><td class="perm-yes">✓</td><td class="perm-yes">✓</td></tr>
+        <tr><td>View &amp; manage alerts</td>  <td class="perm-no">✗</td><td class="perm-yes">✓</td><td class="perm-yes">✓</td></tr>
+        <tr><td>View quarantine</td>           <td class="perm-no">✗</td><td class="perm-yes">✓</td><td class="perm-yes">✓</td></tr>
+        <tr><td>View reports &amp; analytics</td><td class="perm-no">✗</td><td class="perm-yes">✓</td><td class="perm-yes">✓</td></tr>
+        <tr><td>Manage users &amp; roles</td>  <td class="perm-no">✗</td><td class="perm-no">✗</td><td class="perm-yes">✓</td></tr>
+        <tr><td>Create admin accounts</td>     <td class="perm-no">✗</td><td class="perm-no">✗</td><td class="perm-yes">✓</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Users table -->
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">All Accounts <span id="user-count" class="text-dim text-sm"></span></span>
+      <div style="display:flex;gap:.5rem;align-items:center;">
+        <!-- Filter by role -->
+        <select class="role-select" id="filter-role" onchange="loadUsers()">
+          <option value="">All roles</option>
+          <option value="admin">Admin</option>
+          <option value="analyst">Analyst</option>
+          <option value="user">User</option>
+        </select>
+        <!-- Filter by status -->
+        <select class="role-select" id="filter-status" onchange="loadUsers()">
+          <option value="">All status</option>
+          <option value="true">Active</option>
+          <option value="false">Inactive</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="loadUsers()">Refresh</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Username</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Department</th>
+            <th>Status</th>
+            <th>Last Login</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="users-tbody">
+          <tr><td colspan="8" class="text-dim text-center text-mono" style="padding:2rem;">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── CREATE USER MODAL ───────────────────────────────────── -->
+<div class="modal-overlay" id="create-modal">
+  <div class="modal">
+    <h3>Create New User</h3>
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="new-username" placeholder="john_doe" />
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="new-email" placeholder="john@company.com" />
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="new-password" placeholder="Min 8 characters" />
+    </div>
+    <div class="form-group">
+      <label>Role</label>
+      <select class="role-select" id="new-role" style="width:100%;padding:.5rem;">
+        <option value="user">User — basic access</option>
+        <option value="analyst">Analyst — can view all scans & alerts</option>
+        <option value="admin">Admin — full access including user management</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Department <span class="text-dim">(optional)</span></label>
+      <input type="text" id="new-dept" placeholder="e.g. Finance, IT, HR" />
+    </div>
+    <div id="create-error" style="color:var(--danger);font-size:.78rem;min-height:1rem;font-family:var(--font-mono);"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeCreateModal()">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="doCreateUser()">Create User</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CONFIRM DELETE MODAL ───────────────────────────────── -->
+<div class="modal-overlay" id="delete-modal">
+  <div class="modal">
+    <h3>⚠ Confirm Delete</h3>
+    <p class="text-dim" style="font-size:.85rem;line-height:1.6;">
+      Permanently delete <b id="delete-username" style="color:var(--danger)"></b>?<br>
+      This removes their account AND all their scan history.<br>
+      <strong>This cannot be undone.</strong> Consider deactivating instead.
+    </p>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn btn-sm" style="background:var(--danger);color:#fff;"
+              onclick="doDeleteUser()">Yes, Delete Permanently</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/utils.js"></script>
+<script>
+  // Guard: admin only
+  if (!Auth.requireAdmin()) throw new Error('redirect');
+  Utils.setupTopbar();
+
+  let _deleteTargetId = null;
+
+  // ── Load users table ──────────────────────────────────────
+  async function loadUsers() {
+    const role      = document.getElementById('filter-role').value;
+    const isActive  = document.getElementById('filter-status').value;
+    const tbody     = document.getElementById('users-tbody');
+
+    tbody.innerHTML = `<tr><td colspan="8" class="text-dim text-center text-mono" style="padding:2rem;">Loading…</td></tr>`;
+
+    let url = '/admin/users?limit=100';
+    if (role)     url += `&role=${role}`;
+    if (isActive) url += `&is_active=${isActive}`;
+
+    const res = await API.getUsers ? API.getUsers() : fetch(`/api${url}`, {
+      headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
+    }).then(r => r.json());
+
+    // Direct fetch for filtered URL
+    const data = await fetch(`/api${url}`, {
+      headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
+    }).then(r => r.json());
+
+    if (!data || data.status !== 'success') {
+      tbody.innerHTML = `<tr><td colspan="8" class="text-dim text-center">Failed to load users.</td></tr>`;
+      return;
+    }
+
+    const users = data.data.users;
+    document.getElementById('user-count').textContent = `(${data.data.total})`;
+
+    if (!users.length) {
+      tbody.innerHTML = `<tr><td colspan="8" class="text-dim text-center text-mono" style="padding:2rem;">No users found.</td></tr>`;
+      return;
+    }
+
+    const currentUser = Auth.getUser();
+
+    tbody.innerHTML = users.map(u => {
+      const isSelf    = currentUser && currentUser.id === u.id;
+      const lastLogin = u.last_login
+        ? new Date(u.last_login).toLocaleString()
+        : '<span class="text-muted">Never</span>';
+
+      const statusPill = u.is_active
+        ? '<span class="pill-active">● Active</span>'
+        : '<span class="pill-inactive">● Inactive</span>';
+
+      // Role dropdown — disabled for self (can't demote yourself)
+      const roleSelect = `
+        <select class="role-select" onchange="changeRole(${u.id}, this.value)"
+                ${isSelf ? 'disabled title="Cannot change your own role"' : ''}>
+          <option value="user"    ${u.role==='user'    ? 'selected':''}>User</option>
+          <option value="analyst" ${u.role==='analyst' ? 'selected':''}>Analyst</option>
+          <option value="admin"   ${u.role==='admin'   ? 'selected':''}>Admin</option>
+        </select>`;
+
+      // Action buttons
+      let actions = '';
+
+      if (!isSelf) {
+        if (u.is_active) {
+          actions += `<button class="btn btn-ghost btn-sm"
+            style="color:var(--warn);border-color:var(--warn);"
+            onclick="toggleActive(${u.id}, false, '${u.username}')">Deactivate</button>`;
+        } else {
+          actions += `<button class="btn btn-ghost btn-sm"
+            style="color:var(--safe);border-color:var(--safe);"
+            onclick="toggleActive(${u.id}, true, '${u.username}')">Reactivate</button>`;
+        }
+        actions += `<button class="btn btn-ghost btn-sm"
+          style="color:var(--danger);border-color:var(--danger);"
+          onclick="openDeleteModal(${u.id}, '${u.username}')">Delete</button>`;
+      } else {
+        actions = `<span class="text-dim text-mono" style="font-size:.7rem;">You</span>`;
+      }
+
+      return `<tr class="${u.is_active ? '' : 'text-dim'}">
+        <td class="text-mono">#${u.id}</td>
+        <td><b>${u.username}</b>${isSelf ? ' <span style="color:var(--accent);font-size:.7rem;">(you)</span>' : ''}</td>
+        <td class="text-dim text-mono" style="font-size:.78rem;">${u.email || '—'}</td>
+        <td>${roleSelect}</td>
+        <td class="text-dim">${u.department || '—'}</td>
+        <td>${statusPill}</td>
+        <td class="text-dim text-mono" style="font-size:.75rem;">${lastLogin}</td>
+        <td><div class="action-row">${actions}</div></td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ── Change a user's role ──────────────────────────────────
+  async function changeRole(userId, newRole) {
+    const res = await fetch(`/api/admin/users/${userId}`, {
+      method:  'PATCH',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${Auth.getToken()}`,
+      },
+      body: JSON.stringify({ role: newRole }),
+    }).then(r => r.json());
+
+    if (res.status === 'success') {
+      Utils.toast(`Role updated to ${newRole}.`);
+    } else {
+      Utils.toast(res.message || 'Failed to update role.', true);
+      loadUsers(); // reset dropdown to actual value
+    }
+  }
+
+  // ── Deactivate / Reactivate ───────────────────────────────
+  async function toggleActive(userId, activate, username) {
+    const endpoint = activate ? 'reactivate' : 'deactivate';
+    const res = await fetch(`/api/admin/users/${userId}/${endpoint}`, {
+      method:  'POST',
+      headers: { 'Authorization': `Bearer ${Auth.getToken()}` },
+    }).then(r => r.json());
+
+    if (res.status === 'success') {
+      Utils.toast(`${username} ${activate ? 'reactivated' : 'deactivated'}.`);
+      loadUsers();
+    } else {
+      Utils.toast(res.message || 'Action failed.', true);
+    }
+  }
+
+  // ── Delete modal ──────────────────────────────────────────
+  function openDeleteModal(userId, username) {
+    _deleteTargetId = userId;
+    document.getElementById('delete-username').textContent = username;
+    document.getElementById('delete-modal').classList.add('open');
+  }
+  function closeDeleteModal() {
+    _deleteTargetId = null;
+    document.getElementById('delete-modal').classList.remove('open');
+  }
+  async function doDeleteUser() {
+    if (!_deleteTargetId) return;
+    const res = await fetch(`/api/admin/users/${_deleteTargetId}`, {
+      method:  'DELETE',
+      headers: { 'Authorization': `Bearer ${Auth.getToken()}` },
+    }).then(r => r.json());
+
+    closeDeleteModal();
+    if (res.status === 'success') {
+      Utils.toast('User permanently deleted.');
+      loadUsers();
+    } else {
+      Utils.toast(res.message || 'Delete failed.', true);
+    }
+  }
+
+  // ── Create user modal ─────────────────────────────────────
+  function openCreateModal() {
+    document.getElementById('create-modal').classList.add('open');
+    document.getElementById('new-username').focus();
+  }
+  function closeCreateModal() {
+    document.getElementById('create-modal').classList.remove('open');
+    document.getElementById('create-error').textContent = '';
+    ['new-username','new-email','new-password','new-dept'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('new-role').value = 'user';
+  }
+  async function doCreateUser() {
+    const username = document.getElementById('new-username').value.trim();
+    const email    = document.getElementById('new-email').value.trim();
+    const password = document.getElementById('new-password').value;
+    const role     = document.getElementById('new-role').value;
+    const dept     = document.getElementById('new-dept').value.trim();
+    const errEl    = document.getElementById('create-error');
+
+    errEl.textContent = '';
+
+    if (!username || !email || !password) {
+      errEl.textContent = 'Username, email and password are required.';
+      return;
+    }
+    if (password.length < 8) {
+      errEl.textContent = 'Password must be at least 8 characters.';
+      return;
+    }
+
+    const res = await fetch('/api/admin/users', {
+      method:  'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${Auth.getToken()}`,
+      },
+      body: JSON.stringify({ username, email, password, role,
+                             department: dept || undefined }),
+    }).then(r => r.json());
+
+    if (res.status === 'success' || res.status === 'created') {
+      Utils.toast(`User '${username}' created as ${role}.`);
+      closeCreateModal();
+      loadUsers();
+    } else {
+      errEl.textContent = res.message || 'Failed to create user.';
+    }
+  }
+
+  // Close modals on overlay click
+  document.getElementById('create-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeCreateModal();
+  });
+  document.getElementById('delete-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeDeleteModal();
+  });
+
+  // Load on page start
+  loadUsers();
+</script>
+</body>
+</html>

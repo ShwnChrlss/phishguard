@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PhishGuard — Detect Email</title>
+  <link rel="stylesheet" href="/css/variables.css" />
+  <link rel="stylesheet" href="/css/base.css" />
+  <link rel="stylesheet" href="/css/components.css" />
+  <link rel="stylesheet" href="/css/layout.css" />
+  <link rel="stylesheet" href="/css/animations.css" />
+  <link rel="stylesheet" href="/css/pages.css" />
+</head>
+<body>
+
+<!-- TOPBAR (same on every page) -->
+<div class="topbar">
+  <a class="topbar-logo" href="/dashboard">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V7L12 2z"/>
+      <path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    Phish<span>Guard</span>
+  </a>
+  <div class="topbar-right">
+    <span class="user-badge">Signed in as <b id="topbar-username">—</b></span>
+    <button class="btn btn-ghost btn-sm" onclick="Auth.logout()">Logout</button>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="nav-section">
+    <div class="nav-label">Main</div>
+    <a class="nav-item" data-page="dashboard" href="/dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </a>
+    <a class="nav-item" data-page="analyzer" href="/detect">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      Detect Email
+    </a>
+    <a class="nav-item" data-page="chatbot" href="/chat">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      Security Chat
+    </a>
+  </div>
+  <div class="nav-section admin-only hidden">
+    <div class="nav-label">Admin</div>
+    <a class="nav-item" href="/alerts">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+      Alerts
+    </a>
+    <a class="nav-item" href="/quarantine">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      Quarantine
+    </a>
+    <a class="nav-item" href="/users">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+      Users
+    </a>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="page-header">
+    <h2>Detect Email</h2>
+    <p class="text-mono text-sm text-dim">Paste an email to analyse it for phishing indicators</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header"><span class="panel-title">Email Analysis</span></div>
+    <div class="panel-body">
+      <div class="form-group">
+        <label>Subject (optional)</label>
+        <input type="text" id="det-subject" placeholder="e.g. Urgent: Your account has been suspended" />
+      </div>
+      <div class="form-group">
+        <label>Sender Address (optional)</label>
+        <input type="text" id="det-sender" placeholder="e.g. security@paypa1.com" />
+      </div>
+      <div class="form-group">
+        <label>Email Body *</label>
+        <textarea id="det-body" style="min-height:200px;" placeholder="Paste the full email body here..."></textarea>
+      </div>
+      <div class="flex gap-2">
+        <button class="btn btn-primary" id="detect-btn" onclick="doDetect()">🔍 Analyse Email</button>
+        <button class="btn btn-ghost" onclick="clearForm()">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULT (hidden until scan runs) -->
+  <div class="detect-result" id="detect-result">
+    <div class="result-header">
+      <div>
+        <div class="verdict-label">Verdict</div>
+        <div class="verdict-text" id="result-verdict">—</div>
+      </div>
+      <div>
+        <div class="verdict-label">Risk Score</div>
+        <div class="score-big" id="result-score">—</div>
+        <div class="risk-meter" style="min-width:180px;">
+          <div class="risk-bar-wrap">
+            <div class="risk-bar" id="result-bar" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+      <div class="result-meta">
+        <div class="meta-item"><span class="meta-key">Confidence: </span><span class="meta-val" id="result-conf">—</span></div>
+        <div class="meta-item"><span class="meta-key">Status: </span><span class="meta-val" id="result-status">—</span></div>
+        <div class="meta-item"><span class="meta-key">Alert raised: </span><span class="meta-val" id="result-alert">—</span></div>
+        <div class="meta-item"><span class="meta-key">Scan #: </span><span class="meta-val" id="result-id">—</span></div>
+      </div>
+    </div>
+    <div class="panel-body">
+      <p class="text-mono text-xs text-dim" style="margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:0.1em;">Why we flagged this</p>
+      <div id="result-explanations"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/utils.js"></script>
+<script src="/js/analyzer.js"></script>
+<script>
+  if (!Auth.requireAuth()) throw new Error('redirect');
+</script>
+</body>
+</html>

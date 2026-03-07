@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>PhishGuard — Alerts</title>
+  <link rel="stylesheet" href="/css/variables.css" />
+  <link rel="stylesheet" href="/css/base.css" />
+  <link rel="stylesheet" href="/css/components.css" />
+  <link rel="stylesheet" href="/css/layout.css" />
+  <link rel="stylesheet" href="/css/animations.css" />
+  <link rel="stylesheet" href="/css/pages.css" />
+  <style>
+    .status-legend {
+      display: flex; gap: 1.5rem; flex-wrap: wrap;
+      padding: 1rem 1.25rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+    }
+    .legend-item { display: flex; align-items: flex-start; gap: .6rem; }
+    .legend-dot  { width: 10px; height: 10px; border-radius: 50%; margin-top: .25rem; flex-shrink: 0; }
+    .legend-text { font-size: .78rem; line-height: 1.5; }
+    .legend-text b { display: block; font-family: var(--font-mono); font-size: .72rem; }
+
+    /* Detail slide panel */
+    .detail-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:200; }
+    .detail-overlay.open { display:block; }
+    .detail-panel {
+      position:fixed; top:0; right:0;
+      width:min(560px, 92vw); height:100vh;
+      background:var(--surface); border-left:1px solid var(--border);
+      padding:2rem; overflow-y:auto; z-index:201;
+      animation: slideInRight .2s ease;
+    }
+    @keyframes slideInRight { from{transform:translateX(100%)} to{transform:translateX(0)} }
+    .detail-close { position:absolute; top:1rem; right:1.25rem; background:none; border:none; color:var(--text-dim); font-size:1.4rem; cursor:pointer; }
+    .detail-label { font-family:var(--font-mono); font-size:.68rem; color:var(--text-dim); letter-spacing:.1em; text-transform:uppercase; margin-bottom:.3rem; margin-top:1rem; }
+    .detail-value { color:var(--text); font-size:.88rem; line-height:1.6; }
+
+    /* Filter tabs */
+    .filter-tabs { display:flex; gap:.5rem; margin-bottom:1rem; }
+    .filter-tab {
+      padding:.35rem .9rem; border-radius:4px; border:1px solid var(--border);
+      background:none; color:var(--text-dim); font-family:var(--font-mono);
+      font-size:.72rem; cursor:pointer; transition:all .15s;
+    }
+    .filter-tab.active { background:var(--accent); color:#000; border-color:var(--accent); }
+
+    .data-table tbody tr { cursor:pointer; }
+    .data-table tbody tr:hover td { background:var(--surface2); }
+  </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <a class="topbar-logo" href="/dashboard">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V7L12 2z"/>
+      <path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>Phish<span>Guard</span>
+  </a>
+  <div class="topbar-right">
+    <span class="model-status"><span class="status-dot"></span>MODEL ONLINE</span>
+    <span class="user-badge">Signed in as <b id="topbar-username">—</b></span>
+    <button class="btn btn-ghost btn-sm" onclick="Auth.logout()">Logout</button>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="nav-section">
+    <div class="nav-label">Main</div>
+    <a class="nav-item" href="/dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Dashboard</a>
+    <a class="nav-item" href="/detect"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Detect Email</a>
+    <a class="nav-item" href="/chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Security Chat</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Admin</div>
+    <a class="nav-item active" href="/alerts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>Alerts</a>
+    <a class="nav-item" href="/quarantine"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>Quarantine</a>
+    <a class="nav-item" href="/users"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Users</a>
+    <a class="nav-item" href="/reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>Reports</a>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="page-header">
+    <div>
+      <h2>Security Alerts</h2>
+      <p class="text-mono text-sm text-dim">Auto-generated when phishing is detected. Click any row to review.</p>
+    </div>
+  </div>
+
+  <!-- Status legend — explains what each status means -->
+  <div class="status-legend">
+    <div class="legend-item">
+      <div class="legend-dot" style="background:var(--danger)"></div>
+      <div class="legend-text">
+        <b>PENDING</b>
+        Alert just created. No human has reviewed it yet.
+        Requires action — go to Quarantine to review the email.
+      </div>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:var(--warn)"></div>
+      <div class="legend-text">
+        <b>ACKNOWLEDGED</b>
+        An analyst has seen it and is investigating.
+        The email is still quarantined until fully resolved.
+      </div>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:var(--safe)"></div>
+      <div class="legend-text">
+        <b>RESOLVED</b>
+        Investigation complete. Either confirmed phishing
+        (kept quarantined) or false positive (released to user).
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter tabs -->
+  <div class="filter-tabs">
+    <button class="filter-tab active" onclick="setFilter('pending',   this)">🔴 Pending</button>
+    <button class="filter-tab"        onclick="setFilter('acknowledged', this)">⚠️ Acknowledged</button>
+    <button class="filter-tab"        onclick="setFilter('resolved',  this)">✅ Resolved</button>
+    <button class="filter-tab"        onclick="setFilter('',          this)">All</button>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">Alerts <span id="alert-count" class="text-dim text-sm"></span></span>
+      <button class="btn btn-ghost btn-sm" onclick="loadAlerts()">Refresh</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th><th>Severity</th><th>Title</th>
+            <th>Risk</th><th>Status</th><th>Created</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="alerts-tbody">
+          <tr><td colspan="7" class="text-dim text-center text-mono" style="padding:2rem;">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL PANEL -->
+<div class="detail-overlay" id="detail-overlay" onclick="closeDetail(event)">
+  <div class="detail-panel">
+    <button class="detail-close" onclick="closeDetailDirect()">✕</button>
+    <div id="detail-content" style="padding-top:.5rem;"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/utils.js"></script>
+<script>
+  if (!Auth.requireAnalyst()) throw new Error('redirect');
+  Utils.setupTopbar();
+
+  let _currentFilter = 'pending';
+
+  function setFilter(status, btn) {
+    _currentFilter = status;
+    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    loadAlerts();
+  }
+
+  async function loadAlerts() {
+    const tbody = document.getElementById('alerts-tbody');
+    tbody.innerHTML = `<tr><td colspan="7" class="text-dim text-center text-mono" style="padding:2rem;">Loading…</td></tr>`;
+
+    let url = `/api/admin/alerts?limit=50`;
+    if (_currentFilter) url += `&status=${_currentFilter}`;
+
+    const res = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
+    }).then(r => r.json());
+
+    if (!res || res.status !== 'success') {
+      tbody.innerHTML = `<tr><td colspan="7" class="text-dim text-center">Failed to load alerts.</td></tr>`;
+      return;
+    }
+
+    const alerts = res.data.alerts;
+    document.getElementById('alert-count').textContent = `(${res.data.total})`;
+
+    if (!alerts.length) {
+      const msg = _currentFilter === 'pending'
+        ? '✅ No pending alerts. All clear!'
+        : 'No alerts found for this filter.';
+      tbody.innerHTML = `<tr><td colspan="7" class="text-dim text-center text-mono" style="padding:2rem;">${msg}</td></tr>`;
+      return;
+    }
+
+    const sevColor = { critical:'var(--danger)', high:'var(--high)', medium:'var(--warn)', low:'var(--accent)' };
+    const statColor = { pending:'var(--danger)', acknowledged:'var(--warn)', resolved:'var(--safe)' };
+
+    tbody.innerHTML = alerts.map(a => {
+      const time = a.created_at ? new Date(a.created_at).toLocaleString() : '—';
+      const sev  = a.severity || 'medium';
+      const stat = a.status   || 'pending';
+
+      // Actions depend on current status
+      let actions = '';
+      if (stat === 'pending') {
+        actions = `
+          <button class="btn btn-ghost btn-sm" style="font-size:.7rem;"
+            onclick="ackAlert(event, ${a.id})">ACK</button>
+          <button class="btn btn-ghost btn-sm" style="font-size:.7rem;color:var(--safe);border-color:var(--safe);"
+            onclick="resolveAlert(event, ${a.id})">RESOLVE</button>`;
+      } else if (stat === 'acknowledged') {
+        actions = `
+          <button class="btn btn-ghost btn-sm" style="font-size:.7rem;color:var(--safe);border-color:var(--safe);"
+            onclick="resolveAlert(event, ${a.id})">RESOLVE</button>`;
+      } else {
+        actions = `<span class="text-dim text-mono" style="font-size:.7rem;">Done</span>`;
+      }
+
+      return `<tr onclick="openDetail(${a.id})">
+        <td class="text-mono">#${a.id}</td>
+        <td style="color:${sevColor[sev]||'var(--text)'};font-family:var(--font-mono);font-size:.75rem;font-weight:700;">${sev.toUpperCase()}</td>
+        <td style="font-size:.82rem;">${a.title || '—'}</td>
+        <td style="font-family:var(--font-mono);color:${sevColor[sev]};">${a.risk_score||0}/100</td>
+        <td style="color:${statColor[stat]||'var(--text-dim)'};font-family:var(--font-mono);font-size:.72rem;">${stat.toUpperCase()}</td>
+        <td class="text-dim text-mono" style="font-size:.72rem;">${time}</td>
+        <td onclick="event.stopPropagation()"><div style="display:flex;gap:.4rem;">${actions}</div></td>
+      </tr>`;
+    }).join('');
+  }
+
+  async function ackAlert(e, id) {
+    e.stopPropagation();
+    const res = await fetch(`/api/admin/alerts/${id}/acknowledge`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
+    }).then(r => r.json());
+    Utils.toast(res.status === 'success' ? 'Alert acknowledged.' : (res.message||'Failed.'), res.status !== 'success');
+    loadAlerts();
+  }
+
+  async function resolveAlert(e, id) {
+    e.stopPropagation();
+    const res = await fetch(`/api/admin/alerts/${id}/resolve`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Auth.getToken()}`
+      },
+      body: JSON.stringify({})
+    }).then(r => r.json());
+    Utils.toast(res.status === 'success' ? 'Alert resolved.' : (res.message||'Failed.'), res.status !== 'success');
+    loadAlerts();
+  }
+
+  async function openDetail(alertId) {
+    const res = await fetch(`/api/admin/alerts?limit=100`, {
+      headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
+    }).then(r => r.json());
+
+    const alert = res?.data?.alerts?.find(a => a.id === alertId);
+    if (!alert) return;
+
+    const sevColor  = { critical:'var(--danger)', high:'var(--high)', medium:'var(--warn)', low:'var(--accent)' };
+    const statColor = { pending:'var(--danger)', acknowledged:'var(--warn)', resolved:'var(--safe)' };
+    const sev  = alert.severity || 'medium';
+    const stat = alert.status   || 'pending';
+
+    document.getElementById('detail-content').innerHTML = `
+      <div class="detail-label">Severity</div>
+      <div style="color:${sevColor[sev]};font-family:var(--font-mono);font-weight:700;font-size:1.1rem;">${sev.toUpperCase()}</div>
+
+      <div class="detail-label">Status</div>
+      <div style="color:${statColor[stat]};font-family:var(--font-mono);">${stat.toUpperCase()}</div>
+
+      <div class="detail-label">Title</div>
+      <div class="detail-value">${alert.title || '—'}</div>
+
+      <div class="detail-label">Risk Score</div>
+      <div style="font-family:var(--font-mono);font-size:1.2rem;color:${sevColor[sev]};">${alert.risk_score||0}/100</div>
+
+      <div class="detail-label">Description</div>
+      <div class="detail-value" style="background:var(--surface2);padding:.75rem;border-radius:6px;border:1px solid var(--border);">
+        ${alert.message || '—'}
+      </div>
+
+      <div class="detail-label">Target / Sender</div>
+      <div class="detail-value text-mono" style="font-size:.8rem;">${alert.target_email || '—'}</div>
+
+      <div class="detail-label">Created</div>
+      <div class="detail-value text-mono" style="font-size:.78rem;">
+        ${alert.created_at ? new Date(alert.created_at).toLocaleString() : '—'}
+      </div>
+
+      ${alert.resolved_by ? `
+      <div class="detail-label">Resolved By</div>
+      <div class="detail-value text-mono" style="font-size:.78rem;">${alert.resolved_by}
+        ${alert.resolved_at ? ' at ' + new Date(alert.resolved_at).toLocaleString() : ''}
+      </div>` : ''}
+
+      <div style="margin-top:1.5rem;">
+        <p class="text-dim" style="font-size:.78rem;line-height:1.6;font-family:var(--font-mono);">
+          To review the actual email content, go to
+          <a href="/quarantine" style="color:var(--accent);">Quarantine</a>
+          and find scan #${alert.scan_id || '?'}.
+        </p>
+      </div>
+    `;
+
+    document.getElementById('detail-overlay').classList.add('open');
+  }
+
+  function closeDetail(e) {
+    if (e && e.target !== document.getElementById('detail-overlay')) return;
+    document.getElementById('detail-overlay').classList.remove('open');
+  }
+  function closeDetailDirect() {
+    document.getElementById('detail-overlay').classList.remove('open');
+  }
+
+  loadAlerts();
+</script>
+</body>
+</html>
