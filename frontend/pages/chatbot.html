@@ -474,7 +474,7 @@
       removeTyping();
 
       if (res.status === 'success') {
-        const reply    = res.data.response || res.data.message || 'No response.';
+        const reply    = res.data.reply || res.data.message || 'No response.';
         // Generate follow-ups from USER question only — never from the reply
         const followups = getFollowups(text);
         appendMessage('bot', reply, followups);
