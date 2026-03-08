@@ -462,6 +462,129 @@ EOF
 }
 
 # ── Main menu ─────────────────────────────────────────────────
+# ── Delete merged branches ────────────────────────────────────
+# Lists all local branches except main and dev, lets user
+# pick one or more to delete locally and on GitHub.
+delete_branches() {
+  header "🗑  Delete Merged Branches"
+
+  if ! has_commits; then
+    warn "No commits yet — nothing to delete."
+    return
+  fi
+
+  # Collect all branches except main, dev, and current
+  local current
+  current=$(current_branch)
+
+  # Build list excluding protected branches
+  mapfile -t branches < <(
+    git branch --format='%(refname:short)' \
+    | grep -vE '^(main|dev)$' \
+    | grep -v "^${current}$"
+  )
+
+  if [[ ${#branches[@]} -eq 0 ]]; then
+    warn "No branches to delete (only main/dev and current branch exist)."
+    return
+  fi
+
+  # Show numbered list
+  echo -e "${BOLD}Available branches to delete:${NC}"
+  echo -e "${DIM}(main and dev are protected — never deleted)${NC}"
+  echo ""
+  for i in "${!branches[@]}"; do
+    local b="${branches[$i]}"
+    # Check if merged into dev
+    if git branch --merged dev 2>/dev/null | grep -q "^\s*${b}$"; then
+      echo "  $((i+1))) ${b} ${GREEN}[merged into dev ✓]${NC}"
+    else
+      echo "  $((i+1))) ${b} ${YELLOW}[NOT merged — deleting loses work]${NC}"
+    fi
+  done
+  echo ""
+  echo "  a) Delete ALL merged branches at once"
+  echo "  0) Cancel"
+  echo ""
+
+  read -rp "$(echo -e "${YELLOW}?  Choose number(s), 'a' for all, or 0 to cancel: ${NC}")" choice
+
+  case "$choice" in
+    0)
+      warn "Cancelled."
+      return
+      ;;
+
+    a)
+      # Delete only merged branches automatically
+      local merged=()
+      for b in "${branches[@]}"; do
+        if git branch --merged dev 2>/dev/null | grep -q "^\s*${b}$"; then
+          merged+=("$b")
+        fi
+      done
+
+      if [[ ${#merged[@]} -eq 0 ]]; then
+        warn "No merged branches found to delete."
+        return
+      fi
+
+      echo ""
+      echo -e "${BOLD}Will delete these merged branches:${NC}"
+      for b in "${merged[@]}"; do echo "  • $b"; done
+      echo ""
+      confirm "Delete all of the above?" || { warn "Cancelled."; return; }
+
+      for b in "${merged[@]}"; do
+        git branch -d "$b" && \
+          git push origin --delete "$b" 2>/dev/null && \
+          success "Deleted: $b (local + remote)" || \
+          warn "Could not fully delete: $b"
+      done
+      ;;
+
+    *)
+      # Parse comma or space separated numbers e.g. "1 3" or "1,3"
+      local selections
+      IFS=', ' read -ra selections <<< "$choice"
+
+      for sel in "${selections[@]}"; do
+        # Validate it's a number in range
+        if ! [[ "$sel" =~ ^[0-9]+$ ]] || \
+           [[ "$sel" -lt 1 ]] || \
+           [[ "$sel" -gt ${#branches[@]} ]]; then
+          warn "Invalid selection: $sel — skipping"
+          continue
+        fi
+
+        local b="${branches[$((sel-1))]}"
+
+        # Warn if not merged
+        if ! git branch --merged dev 2>/dev/null | grep -q "^\s*${b}$"; then
+          warn "${b} is NOT merged into dev. Deleting will lose its commits."
+          confirm "Delete anyway?" || { warn "Skipped: $b"; continue; }
+          # Force delete unmerged branch
+          git branch -D "$b"
+        else
+          git branch -d "$b"
+        fi
+
+        # Delete remote
+        if git push origin --delete "$b" 2>/dev/null; then
+          success "Deleted: $b (local + remote)"
+        else
+          success "Deleted: $b (local only — not on remote)"
+        fi
+      done
+      ;;
+  esac
+
+  echo ""
+  info "Remaining branches:"
+  git branch -a
+}
+
+# ── Main menu ─────────────────────────────────────────────────
 main_menu() {
   while true; do
     echo ""
@@ -484,22 +607,24 @@ main_menu() {
     echo -e "  ${BOLD}Info${NC}"
     echo "  8) View commit history"
     echo "  9) Setup GitHub connection"
+    echo "  10) Delete merged branches"
     echo "  0) Exit"
     echo ""
-    read -rp "$(echo -e "${YELLOW}?  Choose [0-9]: ${NC}")" choice
+    read -rp "$(echo -e "${YELLOW}?  Choose [0-10]: ${NC}")" choice
 
     case $choice in
-      1) show_status ;;
-      2) save_work ;;
-      3) push_changes ;;
-      4) pull_latest ;;
-      5) new_feature ;;
-      6) merge_to_dev ;;
-      7) release ;;
-      8) view_log ;;
-      9) setup_github ;;
-      0) echo -e "${GREEN}Goodbye.${NC}"; exit 0 ;;
-      *) warn "Invalid choice. Enter 0-9." ;;
+      1)  show_status ;;
+      2)  save_work ;;
+      3)  push_changes ;;
+      4)  pull_latest ;;
+      5)  new_feature ;;
+      6)  merge_to_dev ;;
+      7)  release ;;
+      8)  view_log ;;
+      9)  setup_github ;;
+      10) delete_branches ;;
+      0)  echo -e "${GREEN}Goodbye.${NC}"; exit 0 ;;
+      *)  warn "Invalid choice. Enter 0-10." ;;
     esac
   done
 }
