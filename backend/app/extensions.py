@@ -92,3 +92,25 @@ migrate = Migrate()
 #
 # NOTE: We restrict which origins in ProductionConfig.
 cors = CORS()
+# ── RATE LIMITER ──────────────────────────────────────────────
+# Flask-Limiter controls how many requests a client can make
+# in a given time window.
+#
+# CONCEPT: key_func — what identifies a "client"?
+# get_remote_address  → limits by IP address
+#                       used for public endpoints (login, register)
+#                       because unauthenticated users have no user ID
+#
+# We use in-memory storage (default) for development.
+# In production you'd use Redis:
+#   storage_uri="redis://localhost:6379"
+# Redis survives server restarts and works across multiple
+# server processes. Memory storage resets on every restart.
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=[],          # no global limit — set per route
+    storage_uri="memory://",
+)
