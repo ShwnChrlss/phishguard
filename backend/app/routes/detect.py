@@ -30,7 +30,7 @@
 
 import logging
 from flask import Blueprint, request, g
-from app.extensions import db
+from app.extensions import db, limiter
 from app.models.email_scan import EmailScan
 from app.models.alert import Alert
 from app.utils.auth_helpers import require_auth, get_current_user
@@ -43,6 +43,7 @@ detect_bp = Blueprint("detect", __name__)
 
 
 @detect_bp.route("/detect", methods=["POST"])
+@limiter.limit("100 per hour")
 @require_auth
 def detect_email():
     """
@@ -217,6 +218,7 @@ ALLOWED_EXTENSIONS = {'.eml', '.msg'}
 MAX_FILE_SIZE_MB   = 5
 
 @detect_bp.route('/detect/upload', methods=['POST'])
+@limiter.limit('20 per hour')
 @require_auth
 def upload_eml():
     """

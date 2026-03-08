@@ -5,7 +5,7 @@
 
 import logging
 from flask import Blueprint, request, g
-from app.extensions import db
+from app.extensions import db, limiter
 from app.models.user import User
 from app.utils.auth_helpers import create_token, require_auth, get_current_user
 from app.utils.responses import success, error, created
@@ -77,6 +77,7 @@ def register():
 
 
 @auth_bp.route("/login", methods=["POST"])
+@limiter.limit("10 per 15 minutes")
 def login():
     """
     POST /api/auth/login
