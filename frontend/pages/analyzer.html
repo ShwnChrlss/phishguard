@@ -10,6 +10,33 @@
   <link rel="stylesheet" href="/css/layout.css" />
   <link rel="stylesheet" href="/css/animations.css" />
   <link rel="stylesheet" href="/css/pages.css" />
+  <style>
+    .tab-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      font-size: .78rem;
+      padding: .35rem .9rem;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .tab-btn.active {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+      font-weight: 600;
+    }
+    .tab-btn:not(.active):hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    #drop-zone.dragover {
+      border-color: var(--accent);
+      background: rgba(0,255,200,.04);
+    }
+  </style>
 </head>
 <body>
 
@@ -72,22 +99,81 @@
   <div class="panel">
     <div class="panel-header"><span class="panel-title">Email Analysis</span></div>
     <div class="panel-body">
-      <div class="form-group">
-        <label>Subject (optional)</label>
-        <input type="text" id="det-subject" placeholder="e.g. Urgent: Your account has been suspended" />
+
+      <!-- ── Tab switcher ───────────────────────────────────── -->
+      <div class="tab-bar" style="display:flex;gap:.5rem;margin-bottom:1.25rem;border-bottom:1px solid var(--border);padding-bottom:.75rem;">
+        <button class="tab-btn active" id="tab-paste"  onclick="switchTab('paste')">
+          ✏️ Paste Text
+        </button>
+        <button class="tab-btn"        id="tab-upload" onclick="switchTab('upload')">
+          📎 Upload .eml File
+        </button>
       </div>
-      <div class="form-group">
-        <label>Sender Address (optional)</label>
-        <input type="text" id="det-sender" placeholder="e.g. security@paypa1.com" />
+
+      <!-- ── TAB 1: Paste text (existing behaviour) ─────────── -->
+      <div id="pane-paste">
+        <div class="form-group">
+          <label>Subject (optional)</label>
+          <input type="text" id="det-subject" placeholder="e.g. Urgent: Your account has been suspended" />
+        </div>
+        <div class="form-group">
+          <label>Sender Address (optional)</label>
+          <input type="text" id="det-sender" placeholder="e.g. security@paypa1.com" />
+        </div>
+        <div class="form-group">
+          <label>Email Body *</label>
+          <textarea id="det-body" style="min-height:200px;" placeholder="Paste the full email body here..."></textarea>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn btn-primary" id="detect-btn" onclick="doDetect()">🔍 Analyse Email</button>
+          <button class="btn btn-ghost"   onclick="clearForm()">Clear</button>
+        </div>
       </div>
-      <div class="form-group">
-        <label>Email Body *</label>
-        <textarea id="det-body" style="min-height:200px;" placeholder="Paste the full email body here..."></textarea>
+
+      <!-- ── TAB 2: Upload .eml ─────────────────────────────── -->
+      <div id="pane-upload" style="display:none;">
+        <!-- Drag and drop zone -->
+        <div id="drop-zone"
+             style="border:2px dashed var(--border);border-radius:6px;padding:2.5rem 1.5rem;
+                    text-align:center;cursor:pointer;transition:border-color .2s,background .2s;"
+             onclick="document.getElementById('eml-file-input').click()"
+             ondragover="handleDragOver(event)"
+             ondragleave="handleDragLeave(event)"
+             ondrop="handleDrop(event)">
+          <div style="font-size:2rem;margin-bottom:.5rem;">📧</div>
+          <div class="text-mono text-sm" style="color:var(--accent);margin-bottom:.25rem;">
+            Click to browse or drag & drop a .eml file
+          </div>
+          <div class="text-xs text-dim text-mono">Maximum file size: 5MB</div>
+        </div>
+
+        <!-- Hidden file input — triggered by clicking drop zone -->
+        <input type="file" id="eml-file-input" accept=".eml,.msg"
+               style="display:none" onchange="handleFileSelect(event)" />
+
+        <!-- File preview — shown after file is selected -->
+        <div id="file-preview" style="display:none;margin-top:1rem;">
+          <div class="panel" style="background:var(--surface-2);padding:.75rem 1rem;">
+            <div style="display:flex;align-items:center;gap:.75rem;">
+              <span style="font-size:1.4rem;">📄</span>
+              <div>
+                <div class="text-mono text-sm" id="file-name" style="color:var(--text);"></div>
+                <div class="text-xs text-dim text-mono" id="file-size"></div>
+              </div>
+              <button class="btn btn-ghost btn-sm" style="margin-left:auto;"
+                      onclick="clearFile()">✕ Remove</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-2" style="margin-top:1.25rem;">
+          <button class="btn btn-primary" id="upload-btn" onclick="doUpload()" disabled>
+            🔍 Analyse .eml File
+          </button>
+          <button class="btn btn-ghost" onclick="clearFile()">Clear</button>
+        </div>
       </div>
-      <div class="flex gap-2">
-        <button class="btn btn-primary" id="detect-btn" onclick="doDetect()">🔍 Analyse Email</button>
-        <button class="btn btn-ghost" onclick="clearForm()">Clear</button>
-      </div>
+
     </div>
   </div>
 

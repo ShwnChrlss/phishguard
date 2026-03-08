@@ -86,3 +86,168 @@ function clearForm() {
   Utils.el('det-sender').value  = '';
   Utils.el('detect-result').classList.remove('visible');
 }
+
+// =============================================================
+//  TAB SWITCHING
+//  CONCEPT: Tab UI pattern
+//  Two panes exist in the DOM at all times.
+//  Switching tabs just toggles display:none on each pane
+//  and updates the active class on the buttons.
+//  No page reload, no routing — pure DOM manipulation.
+// =============================================================
+function switchTab(tab) {
+  // Update button styles
+  Utils.el('tab-paste').classList.toggle('active',  tab === 'paste');
+  Utils.el('tab-upload').classList.toggle('active', tab === 'upload');
+
+  // Show/hide panes
+  Utils.el('pane-paste').style.display  = tab === 'paste'  ? 'block' : 'none';
+  Utils.el('pane-upload').style.display = tab === 'upload' ? 'block' : 'none';
+
+  // Clear result panel when switching tabs
+  Utils.el('detect-result').classList.remove('visible');
+}
+
+// =============================================================
+//  DRAG AND DROP
+//  CONCEPT: HTML5 Drag and Drop API
+//  dragover — fires continuously while file is held over zone
+//             must call preventDefault() to allow drop
+//  dragleave — fires when file leaves the zone
+//  drop     — fires when file is released over the zone
+//             event.dataTransfer.files contains the dropped files
+// =============================================================
+function handleDragOver(e) {
+  e.preventDefault();                              // required to allow drop
+  e.stopPropagation();
+  Utils.el('drop-zone').classList.add('dragover'); // visual feedback
+}
+
+function handleDragLeave(e) {
+  e.preventDefault();
+  Utils.el('drop-zone').classList.remove('dragover');
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  Utils.el('drop-zone').classList.remove('dragover');
+
+  const files = e.dataTransfer.files;
+  if (files.length > 0) {
+    setFile(files[0]);
+  }
+}
+
+// Triggered by clicking the drop zone → hidden <input type="file">
+function handleFileSelect(e) {
+  const files = e.target.files;
+  if (files.length > 0) {
+    setFile(files[0]);
+  }
+}
+
+// =============================================================
+//  FILE SELECTION
+//  Validates the file client-side before sending:
+//  - extension must be .eml
+//  - size must be under 5MB
+//  Then shows the file preview and enables the analyse button.
+// =============================================================
+let _selectedFile = null;
+
+function setFile(file) {
+  // Client-side validation — first line of defence
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext !== 'eml' && ext !== 'msg') {
+    Utils.toast('Invalid file type. Only .eml files are accepted.', true);
+    return;
+  }
+
+  const sizeMB = file.size / (1024 * 1024);
+  if (sizeMB > 5) {
+    Utils.toast(`File too large (${sizeMB.toFixed(1)}MB). Maximum is 5MB.`, true);
+    return;
+  }
+
+  _selectedFile = file;
+
+  // Show preview
+  Utils.el('file-name').textContent = file.name;
+  Utils.el('file-size').textContent = sizeMB < 0.1
+    ? `${(file.size / 1024).toFixed(1)} KB`
+    : `${sizeMB.toFixed(2)} MB`;
+
+  Utils.el('file-preview').style.display = 'block';
+  Utils.el('drop-zone').style.display    = 'none';
+  Utils.el('upload-btn').disabled        = false;
+}
+
+function clearFile() {
+  _selectedFile = null;
+  Utils.el('eml-file-input').value        = '';
+  Utils.el('file-preview').style.display  = 'none';
+  Utils.el('drop-zone').style.display     = 'block';
+  Utils.el('upload-btn').disabled         = true;
+  Utils.el('detect-result').classList.remove('visible');
+}
+
+// =============================================================
+//  EML UPLOAD AND DETECTION
+//  CONCEPT: FormData API
+//  Unlike JSON (which sends text), file uploads need
+//  multipart/form-data encoding. FormData builds this
+//  automatically — we just append the file and fetch it.
+//
+//  The browser sets Content-Type to multipart/form-data
+//  with the correct boundary automatically when using FormData.
+//  Never set Content-Type manually for file uploads.
+// =============================================================
+async function doUpload() {
+  if (!_selectedFile) {
+    Utils.toast('Please select a .eml file first.', true);
+    return;
+  }
+
+  const btn = Utils.el('upload-btn');
+  btn.disabled  = true;
+  btn.innerHTML = '<div class="spinner"></div> Analysing...';
+
+  try {
+    // CONCEPT: FormData
+    // Wraps the file in multipart/form-data encoding
+    // Flask reads it with request.files['file']
+    const formData = new FormData();
+    formData.append('file', _selectedFile);
+
+    const token = Auth.getToken();
+    const res   = await fetch('/api/detect/upload', {
+      method:  'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      // NOTE: Do NOT set Content-Type here — browser sets it
+      // automatically with the correct multipart boundary
+      body: formData,
+    });
+
+    const data = await res.json();
+
+    if (data.status === 'success') {
+      // Merge parsed_email fields into result so renderResult()
+      // can show sender/subject from the parsed file
+      const result = {
+        ...data.data,
+        // Map parsed_email fields to what renderResult expects
+        status:        data.data.is_phishing ? 'quarantined' : 'safe',
+      };
+      renderResult(result);
+    } else {
+      Utils.toast(data.message || 'Upload failed.', true);
+    }
+
+  } catch (err) {
+    Utils.toast('Connection error. Is the server running?', true);
+  } finally {
+    btn.disabled  = false;
+    btn.innerHTML = '🔍 Analyse .eml File';
+  }
+}

@@ -207,3 +207,115 @@ def scan_history():
         "has_next":    pagination.has_next,
         "has_prev":    pagination.has_prev,
     })
+
+# ── NEW: .eml file upload endpoint ───────────────────────────
+import os
+from werkzeug.utils import secure_filename
+from app.services.email_parser import parse_eml
+
+ALLOWED_EXTENSIONS = {'.eml', '.msg'}
+MAX_FILE_SIZE_MB   = 5
+
+@detect_bp.route('/detect/upload', methods=['POST'])
+@require_auth
+def upload_eml():
+    """
+    POST /api/detect/upload
+    Accepts a .eml file, parses it, runs ML detection.
+
+    CONCEPT: secure_filename()
+    Never trust the filename from the user.
+    "../../../../etc/passwd" is a valid filename browsers send.
+    secure_filename() strips path traversal characters.
+
+    CONCEPT: File size limit
+    Without a size check, users could upload gigabyte files
+    and crash the server. Always validate before reading.
+    """
+    # 1. Check file was actually attached
+    if 'file' not in request.files:
+        return error("No file attached — include file in multipart/form-data", 400)
+
+    uploaded = request.files['file']
+
+    if not uploaded.filename:
+        return error("No file selected", 400)
+
+    # 2. Validate file extension
+    _, ext = os.path.splitext(secure_filename(uploaded.filename))
+    if ext.lower() not in ALLOWED_EXTENSIONS:
+        return error(f"Invalid file type '{ext}'. Only .eml files accepted.", 400)
+
+    # 3. Validate file size
+    uploaded.seek(0, 2)           # seek to end
+    size_mb = uploaded.tell() / (1024 * 1024)
+    uploaded.seek(0)              # seek back to start
+    if size_mb > MAX_FILE_SIZE_MB:
+        return error(f"File too large ({size_mb:.1f}MB). Maximum is {MAX_FILE_SIZE_MB}MB.", 400)
+
+    # 4. Parse the .eml file
+    try:
+        raw    = uploaded.read()
+        parsed = parse_eml(raw)
+    except Exception as e:
+        logger.error("EML parse failed: %s", e)
+        return error("Could not parse the .eml file. Is it a valid email file?", 400)
+
+    if not parsed['body']:
+        return error("Could not extract email body from file.", 400)
+
+    # 5. Run ML detection — same logic as /api/detect
+    # We reuse the existing detector service directly
+    detector = PhishingDetectorService.get_instance()
+    
+    result   = detector.predict_safe(parsed['combined'])
+
+    # 6. Save scan to database
+    current_user = get_current_user()
+    user_id      = current_user.id if current_user else None
+
+    scan = EmailScan(
+        user_id          = user_id,
+        email_body       = parsed['body'],
+        email_subject    = parsed['subject'],
+        email_sender     = parsed['sender'],
+        is_phishing      = result['is_phishing'],
+        risk_score       = result['risk_score'],
+        confidence       = result.get('confidence', 0.0),
+        source           = 'eml_upload',
+        status           = 'quarantined' if result['is_phishing'] else 'safe',
+        explanation_json = str(result.get('explanation', [])),
+    )
+    db.session.add(scan)
+    db.session.flush()
+
+    # 7. Create alert if phishing detected
+    alert_created = False
+    alert_threshold = 60
+    if result.get('is_phishing') and result.get('risk_score', 0) >= alert_threshold:
+        from app.models.alert import Alert
+        alert = Alert.create_from_scan(scan)
+        if current_user:
+            alert.target_email      = current_user.email
+            alert.target_department = current_user.department
+        db.session.add(alert)
+        alert_created = True
+
+    db.session.commit()
+
+    return success({
+        'scan_id':       scan.id,
+        'is_phishing':   result['is_phishing'],
+        'risk_score':    result['risk_score'],
+        'confidence':    result.get('confidence', 0.0),
+        'explanation':   result.get('explanation', []),
+        'alert_created': alert_created,
+        'parsed_email':  {
+            'subject':          parsed['subject'],
+            'sender':           parsed['sender'],
+            'recipients':       parsed['recipients'],
+            'links':            parsed['links'],
+            'has_attachments':  parsed['has_attachments'],
+            'attachment_names': parsed['attachment_names'],
+        }
+    })
