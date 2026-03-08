@@ -293,7 +293,8 @@ release() {
   fi
 
   # Get current version from tags
-  last_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+  last_tag=$(git tag --sort=-version:refname 2>/dev/null | head -1)
+  last_tag=${last_tag:-v0.0.0}
   info "Last release tag: ${last_tag}"
 
   echo ""
