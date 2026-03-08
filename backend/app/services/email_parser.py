@@ -1,207 +1,214 @@
 # =============================================================
 #  backend/app/services/email_parser.py
-#  Parses raw .eml files into structured fields
+#  Parses a raw .eml file into a clean dict the detector
+#  can use directly.
 #
-#  CONCEPT: What is a .eml file?
-#  When you "Save As" or export an email from Gmail/Outlook,
-#  you get a .eml file — a text file following RFC 5322 format.
-#  It contains headers (From, To, Subject, Date) and a body
-#  (which may be plain text, HTML, or multipart with attachments).
+#  CONCEPT: MIME (Multipurpose Internet Mail Extensions)
+#  Email was originally designed for plain ASCII text only.
+#  MIME extends it to support: HTML, attachments, images,
+#  multiple character sets (UTF-8, etc).
 #
-#  Python's built-in `email` library handles all the parsing.
-#  We just extract the parts we need for PhishGuard.
-#
-#  USAGE:
-#    from app.services.email_parser import parse_eml_file
-#    result = parse_eml_file("/path/to/email.eml")
-#    # result = {"subject": "...", "sender": "...", "body": "..."}
+#  CONCEPT: Why we extract both text and HTML body
+#  Phishing emails often hide malicious links only in the
+#  HTML version, with innocent-looking plain text as cover.
+#  We need both to detect all threats.
 # =============================================================
 
 import email
-import logging
 import re
+import logging
 from email import policy
-from email.parser import BytesParser
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
-def parse_eml_bytes(raw_bytes: bytes) -> dict:
+def parse_eml(raw: bytes) -> dict:
     """
-    Parses a raw .eml file (as bytes) into a structured dict.
+    Parse raw .eml bytes into a structured dict.
 
-    CONCEPT: email.policy.default
-    Python's email library has two modes:
-    - Legacy mode: returns strings, handles encoding badly
-    - policy.default: returns modern email objects, handles
-      Unicode, MIME parts, and encoding correctly.
-    Always use policy.default for new code.
+    CONCEPT: bytes vs string
+    We accept bytes (not string) because uploaded files
+    arrive as raw bytes from the browser. We let Python's
+    email library handle encoding detection automatically.
 
     Args:
-        raw_bytes: Raw content of the .eml file
+        raw: Raw .eml file bytes from request.files
 
     Returns:
-        Dict with keys: sender, recipients, subject, date,
-                        body_text, body_html, attachments, headers
+        dict with keys: subject, sender, recipients,
+        body, html_body, links, has_attachments,
+        attachment_names, raw_headers
     """
-    try:
-        msg = BytesParser(policy=policy.default).parsebytes(raw_bytes)
-    except Exception as e:
-        logger.error("Failed to parse .eml: %s", e)
-        return {"error": str(e)}
+    # policy=default gives us a modern email object
+    # that handles encoding and unicode properly
+    msg = email.message_from_bytes(raw, policy=policy.default)
 
-    # ── HEADERS ──────────────────────────────────────────────
-    sender     = _decode_header(msg.get("From",    ""))
-    recipients = _decode_header(msg.get("To",      ""))
-    subject    = _decode_header(msg.get("Subject", ""))
-    date       = _decode_header(msg.get("Date",    ""))
-    reply_to   = _decode_header(msg.get("Reply-To",""))
+    # ── Extract headers ───────────────────────────────────────
+    subject    = _decode_header(msg.get('subject',  '(no subject)'))
+    sender     = _decode_header(msg.get('from',     '(unknown)'))
+    recipients = _decode_header(msg.get('to',       ''))
+    date       = _decode_header(msg.get('date',     ''))
+    message_id = _decode_header(msg.get('message-id', ''))
 
-    # ── BODY EXTRACTION ───────────────────────────────────────
-    # CONCEPT: MIME multipart
-    # Emails can have multiple "parts":
-    #   text/plain  — what you read if images are disabled
-    #   text/html   — the formatted version
-    #   attachments — files embedded in the email
-    # We extract all parts and separate them.
+    # ── Extract body parts ────────────────────────────────────
+    text_body  = ''
+    html_body  = ''
+    attachment_names = []
 
-    body_text   = ""
-    body_html   = ""
-    attachments = []
+    for part in msg.walk():
+        # Skip multipart containers — only process leaf parts
+        if part.get_content_maintype() == 'multipart':
+            continue
 
-    if msg.is_multipart():
-        # Walk through every part of the email
-        for part in msg.walk():
-            content_type        = part.get_content_type()
-            content_disposition = str(part.get_content_disposition() or "")
+        content_type = part.get_content_type()
+        disposition  = str(part.get('content-disposition', ''))
 
-            if "attachment" in content_disposition:
-                # It's a file attachment
-                attachments.append({
-                    "filename":     part.get_filename() or "unknown",
-                    "content_type": content_type,
-                    "size":         len(part.get_payload(decode=True) or b""),
-                })
-            elif content_type == "text/plain" and not body_text:
-                body_text = _get_part_text(part)
-            elif content_type == "text/html" and not body_html:
-                body_html = _get_part_text(part)
+        # CONCEPT: Content-Disposition
+        # 'attachment' means it's a file to download
+        # 'inline' means it's part of the visible message
+        if 'attachment' in disposition:
+            fname = part.get_filename()
+            if fname:
+                attachment_names.append(_decode_header(fname))
+            continue
+
+        # Extract plain text body
+        if content_type == 'text/plain' and not text_body:
+            text_body = _decode_payload(part)
+
+        # Extract HTML body
+        elif content_type == 'text/html' and not html_body:
+            html_body = _decode_payload(part)
+
+    # ── Extract links from both body versions ─────────────────
+    # CONCEPT: Why extract from both?
+    # Attackers sometimes put a clean URL in plain text
+    # and a malicious URL only in the HTML href attribute.
+    # We check both to catch all links.
+    links = _extract_links(text_body) + _extract_links(html_body)
+    links = list(dict.fromkeys(links))  # deduplicate, preserve order
+
+    # ── Choose best body for ML detector ──────────────────────
+    # Prefer plain text — it's cleaner for the ML model.
+    # Fall back to HTML stripped of tags if no plain text.
+    if text_body:
+        detector_body = text_body
+    elif html_body:
+        detector_body = _strip_html(html_body)
     else:
-        # Single-part email (simple plain text)
-        content_type = msg.get_content_type()
-        if content_type == "text/html":
-            body_html = _get_part_text(msg)
-        else:
-            body_text = _get_part_text(msg)
+        detector_body = ''
 
-    # If we only have HTML, extract plain text from it
-    if not body_text and body_html:
-        body_text = _html_to_text(body_html)
+    # ── Build subject + body combined string for detector ─────
+    # The ML model was trained on combined subject + body text.
+    # Replicating that here gives the most accurate results.
+    combined = f"Subject: {subject}\n\n{detector_body}".strip()
 
-    # ── EXTRACT ALL URLs from body ────────────────────────────
-    urls = _extract_urls(body_text + " " + body_html)
-
-    return {
-        "sender":      _extract_email_address(sender),
-        "sender_name": _extract_display_name(sender),
-        "reply_to":    _extract_email_address(reply_to),
-        "recipients":  recipients,
-        "subject":     subject,
-        "date":        date,
-        "body_text":   body_text.strip(),
-        "body_html":   body_html,
-        "attachments": attachments,
-        "urls":        urls,
-        "raw_headers": dict(msg.items()),
+    result = {
+        'subject':          subject,
+        'sender':           sender,
+        'recipients':       recipients,
+        'date':             date,
+        'message_id':       message_id,
+        'body':             detector_body,
+        'combined':         combined,      # feeds into ML detector
+        'html_body':        html_body,
+        'links':            links,
+        'has_attachments':  len(attachment_names) > 0,
+        'attachment_names': attachment_names,
     }
 
+    logger.info(
+        "Parsed .eml | from=%s | subject=%s | links=%d | attachments=%d",
+        sender[:40], subject[:40], len(links), len(attachment_names)
+    )
+    return result
 
-def parse_eml_file(filepath: str) -> dict:
-    """
-    Convenience wrapper: reads a .eml file from disk and parses it.
-
-    Args:
-        filepath: Path to the .eml file
-
-    Returns:
-        Same dict as parse_eml_bytes, plus {"filepath": filepath}
-    """
-    try:
-        with open(filepath, "rb") as f:
-            raw = f.read()
-        result = parse_eml_bytes(raw)
-        result["filepath"] = filepath
-        return result
-    except FileNotFoundError:
-        return {"error": f"File not found: {filepath}"}
-    except Exception as e:
-        logger.error("Error reading %s: %s", filepath, e)
-        return {"error": str(e)}
-
-
-# =============================================================
-#  PRIVATE HELPERS
-# =============================================================
 
 def _decode_header(value: str) -> str:
-    """Safely decodes an email header value to a plain string."""
+    """
+    CONCEPT: Encoded headers
+    Email headers can be encoded in various charsets.
+    Example: =?UTF-8?b?VVJHRU5U?= is base64 encoded 'URGENT'
+    email.header.decode_header() handles this automatically.
+    """
     if not value:
-        return ""
+        return ''
     try:
-        # email.header.decode_header handles encoded words like:
-        # =?UTF-8?B?SGVsbG8gV29ybGQ=?= → "Hello World"
-        from email.header import decode_header, make_header
-        return str(make_header(decode_header(value)))
+        from email.header import decode_header as _dh
+        parts = _dh(str(value))
+        decoded = []
+        for part, charset in parts:
+            if isinstance(part, bytes):
+                decoded.append(
+                    part.decode(charset or 'utf-8', errors='replace')
+                )
+            else:
+                decoded.append(str(part))
+        return ' '.join(decoded).strip()
     except Exception:
-        return str(value)
+        return str(value).strip()
 
 
-def _get_part_text(part) -> str:
-    """Extracts text from a MIME part, handling encoding."""
+def _decode_payload(part) -> str:
+    """
+    CONCEPT: Payload decoding
+    Email bodies can be encoded as:
+    - quoted-printable: =20 means space, =3D means equals
+    - base64: entire body is base64 encoded
+    get_payload(decode=True) handles both automatically.
+    Returns raw bytes which we then decode to string.
+    """
     try:
         payload = part.get_payload(decode=True)
         if not payload:
-            return ""
-        charset = part.get_content_charset() or "utf-8"
-        return payload.decode(charset, errors="replace")
-    except Exception:
-        return ""
+            return ''
+        charset = part.get_content_charset() or 'utf-8'
+        return payload.decode(charset, errors='replace').strip()
+    except Exception as e:
+        logger.warning("Payload decode failed: %s", e)
+        return ''
 
 
-def _html_to_text(html: str) -> str:
+def _extract_links(text: str) -> list:
     """
-    Very simple HTML-to-text: strips tags.
-    For production, use the 'html2text' library instead.
+    CONCEPT: Regex for URL extraction
+    URLs follow a pattern: protocol://domain/path?params
+    We use regex to find all of them in the text.
+
+    Pattern breakdown:
+    https?://        → http:// or https://
+    [^\s<>"{}|\\^`]+ → any char except whitespace and HTML chars
     """
-    # Remove script and style blocks
-    html = re.sub(r'<(script|style)[^>]*>.*?</\1>', ' ', html, flags=re.DOTALL | re.IGNORECASE)
-    # Remove all other tags
-    text = re.sub(r'<[^>]+>', ' ', html)
+    if not text:
+        return []
+    pattern = r'https?://[^\s<>"{}|\\^`\[\]]+'
+    links   = re.findall(pattern, text, re.IGNORECASE)
+    # Also extract href values from HTML
+    href_pattern = r'href=["\']?(https?://[^\s"\'<>]+)'
+    hrefs        = re.findall(href_pattern, text, re.IGNORECASE)
+    return list(set(links + hrefs))
+
+
+def _strip_html(html: str) -> str:
+    """
+    CONCEPT: HTML stripping
+    Removes all HTML tags leaving only visible text.
+    Simple regex approach — good enough for email bodies.
+    For production, BeautifulSoup would be more robust.
+    """
+    # Remove script and style blocks entirely
+    text = re.sub(r'<(script|style)[^>]*>.*?</\1>', '', html,
+                  flags=re.DOTALL | re.IGNORECASE)
+    # Remove all remaining tags
+    text = re.sub(r'<[^>]+>', ' ', text)
+    # Decode common HTML entities
+    text = text.replace('&amp;',  '&')
+    text = text.replace('&lt;',   '<')
+    text = text.replace('&gt;',   '>')
+    text = text.replace('&nbsp;', ' ')
+    text = text.replace('&#39;',  "'")
+    text = text.replace('&quot;', '"')
     # Collapse whitespace
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
-
-
-def _extract_urls(text: str) -> list:
-    """Finds all URLs in a block of text."""
-    pattern = r'https?://[^\s<>"\'{}|\\^`\[\]]+'
-    return list(set(re.findall(pattern, text)))
-
-
-def _extract_email_address(header_value: str) -> str:
-    """Extracts just the email address from 'Display Name <email@domain.com>'."""
-    match = re.search(r'<([^>]+)>', header_value)
-    if match:
-        return match.group(1).strip().lower()
-    # No angle brackets — the whole thing might be an email
-    raw = header_value.strip().lower()
-    if "@" in raw:
-        return raw
-    return header_value
-
-
-def _extract_display_name(header_value: str) -> str:
-    """Extracts the display name from 'Display Name <email>'."""
-    if "<" in header_value:
-        return header_value[:header_value.index("<")].strip().strip('"')
-    return ""
