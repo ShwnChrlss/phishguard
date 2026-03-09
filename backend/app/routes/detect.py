@@ -104,6 +104,33 @@ def detect_email():
         # unknown result so the admin knows attempts are happening
         logger.warning("Detection attempted but model not ready.")
 
+    # ── 2b. VIRUSTOTAL URL ENRICHMENT ────────────────────────
+    # Extract URLs from the email and check them against VT.
+    # If malicious URLs found, boost the risk score.
+    # CONCEPT: Graceful degradation — if VT fails, we continue
+    # with the original ML result. Never block a scan for VT.
+    vt_results = []
+    try:
+        from app.services.virustotal import check_urls, enrich_risk_score
+        from app.services.email_parser import _extract_links
+        urls = _extract_links(email_text)
+        if urls:
+            vt_results = check_urls(list(urls)[:5])
+            enriched_score = enrich_risk_score(
+                result.get('confidence', 0.0), vt_results
+            )
+            if enriched_score != result.get('confidence', 0.0):
+                result['confidence'] = enriched_score
+                result['risk_score'] = int(enriched_score * 100)
+                # Re-evaluate phishing label with enriched score
+                result['is_phishing'] = enriched_score >= 0.5
+                result['explanation'].insert(0,
+                    f"🔍 VirusTotal: {sum(r.get('malicious',0) for r in vt_results)} "
+                    f"engine(s) flagged URLs as malicious."
+                )
+    except Exception as e:
+        logger.warning("VT enrichment failed (non-fatal): %s", e)
+
     # ── 3. SAVE SCAN TO DATABASE ──────────────────────────────
     # get_current_user() loads the User from the DB using g.user_id
     # set by @require_auth. Returns None if somehow not found.
@@ -168,6 +195,7 @@ def detect_email():
         "alert_created": alert_created,
         "status":        scan.status,
         "model_ready":   result.get("model_ready", False),
+        "vt_results":    vt_results,
     })
 
 
