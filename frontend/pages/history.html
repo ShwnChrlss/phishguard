@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PhishGuard AI — Scan History</title>
+  <link rel="stylesheet" href="/css/variables.css" />
+  <link rel="stylesheet" href="/css/base.css" />
+  <link rel="stylesheet" href="/css/layout.css" />
+  <link rel="stylesheet" href="/css/components.css" />
+  <link rel="stylesheet" href="/css/animations.css" />
+  <link rel="stylesheet" href="/css/pages.css" />
+  <style>
+    /* ── History page layout ──────────────────────────────── */
+    .history-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .history-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .history-title span {
+      color: var(--accent);
+    }
+
+    /* ── Filter bar ───────────────────────────────────────── */
+    .filter-bar {
+      display: flex;
+      gap: .75rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.25rem;
+    }
+    .filter-btn {
+      padding: .35rem .9rem;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-dim);
+      font-size: .8rem;
+      font-family: monospace;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .filter-btn:hover,
+    .filter-btn.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(0,200,255,.07);
+    }
+
+    /* ── Scan table ───────────────────────────────────────── */
+    .scan-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .85rem;
+    }
+    .scan-table th {
+      text-align: left;
+      padding: .6rem 1rem;
+      color: var(--text-dim);
+      font-size: .75rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .scan-table td {
+      padding: .75rem 1rem;
+      border-bottom: 1px solid rgba(255,255,255,.04);
+      color: var(--text);
+      vertical-align: middle;
+    }
+    .scan-table tr:last-child td { border-bottom: none; }
+    .scan-table tr:hover td {
+      background: rgba(0,200,255,.03);
+    }
+
+    /* ── Risk badge ───────────────────────────────────────── */
+    .risk-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      padding: .25rem .65rem;
+      border-radius: 12px;
+      font-size: .75rem;
+      font-weight: 600;
+      font-family: monospace;
+      white-space: nowrap;
+    }
+    .risk-critical { background: rgba(255,59,59,.15);  color: #ff3b3b; border: 1px solid rgba(255,59,59,.3);  }
+    .risk-high     { background: rgba(255,140,0,.15);  color: #ff8c00; border: 1px solid rgba(255,140,0,.3);  }
+    .risk-medium   { background: rgba(255,200,0,.12);  color: #ffc800; border: 1px solid rgba(255,200,0,.25); }
+    .risk-low      { background: rgba(0,200,100,.12);  color: #00c864; border: 1px solid rgba(0,200,100,.25); }
+
+    /* ── Label pill ───────────────────────────────────────── */
+    .label-pill {
+      display: inline-block;
+      padding: .2rem .6rem;
+      border-radius: 4px;
+      font-size: .75rem;
+      font-family: monospace;
+      font-weight: 600;
+    }
+    .label-phishing { background: rgba(255,59,59,.12); color: #ff3b3b; }
+    .label-clean    { background: rgba(0,200,100,.1);  color: #00c864; }
+
+    /* ── Source chip ──────────────────────────────────────── */
+    .source-chip {
+      font-size: .72rem;
+      color: var(--text-dim);
+      font-family: monospace;
+    }
+
+    /* ── Preview text ─────────────────────────────────────── */
+    .email-preview {
+      max-width: 280px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--text-dim);
+      font-size: .8rem;
+    }
+
+    /* ── Detail modal ─────────────────────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.7);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: var(--surface, #0d1117);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 560px;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+    }
+    .modal-close {
+      position: absolute;
+      top: 1rem; right: 1rem;
+      background: none; border: none;
+      color: var(--text-dim); font-size: 1.2rem;
+      cursor: pointer; line-height: 1;
+    }
+    .modal-close:hover { color: var(--text); }
+    .modal-title {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 1.25rem;
+      color: var(--accent);
+      font-family: monospace;
+    }
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: .5rem 0;
+      border-bottom: 1px solid rgba(255,255,255,.05);
+      font-size: .85rem;
+      gap: 1rem;
+    }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-label { color: var(--text-dim); flex-shrink: 0; }
+    .detail-value { color: var(--text); text-align: right; word-break: break-all; }
+    .explanation-list {
+      list-style: none;
+      padding: 0; margin: .75rem 0 0;
+    }
+    .explanation-list li {
+      padding: .4rem .75rem;
+      margin-bottom: .4rem;
+      background: rgba(255,255,255,.03);
+      border-radius: 4px;
+      font-size: .82rem;
+      color: var(--text-dim);
+      border-left: 2px solid var(--border);
+    }
+
+    /* ── Pagination ───────────────────────────────────────── */
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: .5rem;
+      margin-top: 1.5rem;
+    }
+    .page-btn {
+      padding: .35rem .75rem;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-dim);
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: .8rem;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .page-btn:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .page-btn:disabled { opacity: .35; cursor: not-allowed; }
+    .page-info { color: var(--text-dim); font-size: .8rem; font-family: monospace; }
+
+    /* ── Empty / loading states ───────────────────────────── */
+    .state-msg {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-dim);
+      font-size: .9rem;
+    }
+    .state-msg .icon { font-size: 2.5rem; margin-bottom: .75rem; }
+  </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <a class="topbar-logo" href="/dashboard">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V7L12 2z"/>
+      <path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    Phish<span>Guard</span>
+  </a>
+  <div class="topbar-right">
+    <span class="user-badge">Signed in as <b id="topbar-username">—</b></span>
+    <button class="btn btn-ghost btn-sm" onclick="Auth.logout()">Logout</button>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="nav-section">
+    <div class="nav-label">Main</div>
+    <a class="nav-item" data-page="dashboard" href="/dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </a>
+    <a class="nav-item" data-page="analyzer" href="/detect">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      Detect Email
+    </a>
+    <a class="nav-item" data-page="chatbot" href="/chat">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      Security Chat
+    </a>
+    <a class="nav-item active" data-page="history" href="/history">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+      Scan History
+    </a>
+  </div>
+  <div class="nav-section admin-only hidden">
+    <div class="nav-label">Admin</div>
+    <a class="nav-item" href="/alerts">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+      Alerts
+    </a>
+    <a class="nav-item" href="/quarantine">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      Quarantine
+    </a>
+    <a class="nav-item" href="/users">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+      Users
+    </a>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div style="padding: 0 1.5rem 2rem;">
+
+    <div class="history-header">
+      <div>
+        <div class="history-title">Scan <span>History</span></div>
+        <div style="color:var(--text-dim); font-size:.85rem; margin-top:.25rem;">
+          Your personal phishing scan log
+        </div>
+      </div>
+      <a href="/analyzer" class="btn btn-primary" style="font-size:.85rem;">
+        + New Scan
+      </a>
+    </div>
+
+    <!-- Filter bar -->
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+      <button class="filter-btn" onclick="setFilter('phishing', this)">⚠ Phishing</button>
+      <button class="filter-btn" onclick="setFilter('clean', this)">✓ Clean</button>
+      <button class="filter-btn" onclick="setFilter('api', this)">Text</button>
+      <button class="filter-btn" onclick="setFilter('eml_upload', this)">📎 .eml Upload</button>
+    </div>
+
+    <!-- Table -->
+    <div class="card" style="overflow-x:auto; padding:0;">
+      <div id="history-loading" class="state-msg">
+        <div class="icon">⏳</div>
+        Loading scan history…
+      </div>
+
+      <table class="scan-table" id="scan-table" style="display:none;">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Subject / Preview</th>
+            <th>Sender</th>
+            <th>Risk</th>
+            <th>Label</th>
+            <th>Source</th>
+            <th>Scanned</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="scan-tbody"></tbody>
+      </table>
+
+      <div id="history-empty" class="state-msg" style="display:none;">
+        <div class="icon">🔍</div>
+        No scans found. <a href="/analyzer" style="color:var(--accent);">Run your first scan →</a>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination" id="pagination" style="display:none;">
+      <button class="page-btn" id="btn-prev" onclick="changePage(-1)">← Prev</button>
+      <span class="page-info" id="page-info"></span>
+      <button class="page-btn" id="btn-next" onclick="changePage(1)">Next →</button>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- Detail modal -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title" id="modal-title">Scan Detail</div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script src="/js/utils.js"></script>
+<script src="/js/api.js"></script>
+<script>
+
+let _page   = 1;
+let _filter = 'all';
+let _allScans = [];   // current page data
+
+// ── Auth guard ─────────────────────────────────────────────
+const token = localStorage.getItem('pg_token');
+if (!token) window.location.href = '/login';
+
+// ── Helpers ────────────────────────────────────────────────
+function riskClass(score) {
+  if (score >= 80) return 'risk-critical';
+  if (score >= 60) return 'risk-high';
+  if (score >= 40) return 'risk-medium';
+  return 'risk-low';
+}
+
+function riskIcon(score) {
+  if (score >= 80) return '🔴';
+  if (score >= 60) return '🟠';
+  if (score >= 40) return '🟡';
+  return '🟢';
+}
+
+function timeAgo(iso) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1)  return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
+}
+
+function truncate(str, n) {
+  if (!str) return '—';
+  return str.length > n ? str.slice(0, n) + '…' : str;
+}
+
+// ── Fetch & render ─────────────────────────────────────────
+async function loadHistory() {
+  document.getElementById('history-loading').style.display = 'block';
+  document.getElementById('scan-table').style.display      = 'none';
+  document.getElementById('history-empty').style.display   = 'none';
+  document.getElementById('pagination').style.display      = 'none';
+
+  try {
+    const res  = await fetch(`${BASE}/scans/history?page=${_page}&limit=15`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const json = await res.json();
+
+    if (!res.ok) {
+      if (res.status === 401) window.location.href = '/login';
+      throw new Error(json.error || 'Failed to load');
+    }
+
+    const { scans, total, page, pages, has_next, has_prev } = json.data;
+    _allScans = scans;
+
+    document.getElementById('history-loading').style.display = 'none';
+
+    // Apply client-side filter
+    const filtered = filterScans(scans);
+
+    if (filtered.length === 0) {
+      document.getElementById('history-empty').style.display = 'block';
+      return;
+    }
+
+    renderTable(filtered);
+
+    // Pagination
+    if (pages > 1) {
+      document.getElementById('pagination').style.display = 'flex';
+      document.getElementById('page-info').textContent    = `Page ${page} of ${pages} (${total} total)`;
+      document.getElementById('btn-prev').disabled        = !has_prev;
+      document.getElementById('btn-next').disabled        = !has_next;
+    }
+
+  } catch (err) {
+    document.getElementById('history-loading').innerHTML =
+      `<div class="icon">⚠️</div>Error loading history: ${err.message}`;
+  }
+}
+
+function filterScans(scans) {
+  if (_filter === 'all')       return scans;
+  if (_filter === 'phishing')  return scans.filter(s => s.is_phishing);
+  if (_filter === 'clean')     return scans.filter(s => !s.is_phishing);
+  if (_filter === 'api')       return scans.filter(s => s.source === 'api');
+  if (_filter === 'eml_upload')return scans.filter(s => s.source === 'eml_upload');
+  return scans;
+}
+
+function renderTable(scans) {
+  const tbody = document.getElementById('scan-tbody');
+  tbody.innerHTML = '';
+
+  scans.forEach(scan => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:var(--text-dim); font-family:monospace;">#${scan.id}</td>
+      <td>
+        <div style="font-size:.82rem; color:var(--text); margin-bottom:.2rem;">
+          ${truncate(scan.email_subject, 40) || '<span style="color:var(--text-dim)">No subject</span>'}
+        </div>
+        <div class="email-preview">${truncate(scan.email_preview, 60)}</div>
+      </td>
+      <td style="font-size:.8rem; color:var(--text-dim); font-family:monospace;">
+        ${truncate(scan.email_sender, 30) || '—'}
+      </td>
+      <td>
+        <span class="risk-badge ${riskClass(scan.risk_score)}">
+          ${riskIcon(scan.risk_score)} ${scan.risk_score}%
+        </span>
+      </td>
+      <td>
+        <span class="label-pill ${scan.is_phishing ? 'label-phishing' : 'label-clean'}">
+          ${scan.is_phishing ? '⚠ PHISHING' : '✓ CLEAN'}
+        </span>
+      </td>
+      <td class="source-chip">${scan.source || '—'}</td>
+      <td style="color:var(--text-dim); font-size:.8rem; white-space:nowrap;">
+        ${timeAgo(scan.scanned_at)}
+      </td>
+      <td>
+        <button class="btn" style="padding:.25rem .6rem; font-size:.75rem;"
+          onclick="openModal(${scan.id})">
+          View
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('scan-table').style.display = 'table';
+}
+
+// ── Filter ─────────────────────────────────────────────────
+function setFilter(filter, btn) {
+  _filter = filter;
+  _page   = 1;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  // Filter current data client-side for instant response
+  const filtered = filterScans(_allScans);
+  if (filtered.length === 0) {
+    document.getElementById('scan-table').style.display  = 'none';
+    document.getElementById('history-empty').style.display = 'block';
+  } else {
+    document.getElementById('history-empty').style.display = 'none';
+    renderTable(filtered);
+  }
+}
+
+// ── Pagination ─────────────────────────────────────────────
+function changePage(dir) {
+  _page += dir;
+  loadHistory();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Modal ──────────────────────────────────────────────────
+function openModal(scanId) {
+  const scan = _allScans.find(s => s.id === scanId);
+  if (!scan) return;
+
+  document.getElementById('modal-title').textContent = `Scan #${scan.id}`;
+
+  const rows = [
+    ['Subject',    scan.email_subject || '—'],
+    ['Sender',     scan.email_sender  || '—'],
+    ['Risk Score', `${scan.risk_score}%`],
+    ['Label',      scan.is_phishing ? '⚠ PHISHING' : '✓ CLEAN'],
+    ['Confidence', `${(scan.confidence * 100).toFixed(1)}%`],
+    ['Source',     scan.source || '—'],
+    ['Status',     scan.status || '—'],
+    ['Scanned',    new Date(scan.scanned_at).toLocaleString()],
+  ];
+
+  const detailRows = rows.map(([label, value]) => `
+    <div class="detail-row">
+      <span class="detail-label">${label}</span>
+      <span class="detail-value">${value}</span>
+    </div>
+  `).join('');
+
+  const explanations = (scan.explanation || []).map(e =>
+    `<li>${e}</li>`
+  ).join('');
+
+  document.getElementById('modal-body').innerHTML = `
+    ${detailRows}
+    ${explanations ? `
+      <div style="margin-top:1rem; color:var(--text-dim); font-size:.8rem;
+                  text-transform:uppercase; letter-spacing:.06em; margin-bottom:.5rem;">
+        Analysis
+      </div>
+      <ul class="explanation-list">${explanations}</ul>
+    ` : ''}
+  `;
+
+  document.getElementById('detail-modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('detail-modal').classList.remove('open');
+}
+
+// Close modal on overlay click
+document.getElementById('detail-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// Close on Escape
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
+
+// ── Init ───────────────────────────────────────────────────
+const _user = JSON.parse(localStorage.getItem('pg_user') || 'null');
+if (_user) {
+  const el = document.getElementById('topbar-username');
+  if (el) el.textContent = _user.username || _user.email || '—';
+}
+loadHistory();
+</script>
+</body>
+</html>
