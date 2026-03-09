@@ -147,3 +147,125 @@ def logout():
     """
     logger.info("User logged out: user_id=%s", g.user_id)
     return success(message="Logged out. Please delete your token.")
+
+# =============================================================
+#  PASSWORD RESET ROUTES
+#  Two endpoints:
+#  1. POST /api/auth/forgot-password
+#     Accepts email, generates token, sends reset email.
+#
+#  2. POST /api/auth/reset-password
+#     Accepts token + new password, validates and updates.
+# =============================================================
+
+@auth_bp.route("/forgot-password", methods=["POST"])
+@limiter.limit("5 per hour")
+def forgot_password():
+    """
+    POST /api/auth/forgot-password
+    Body: { "email": "user@example.com" }
+
+    SECURITY CONCEPT: Always return the same response
+    whether the email exists or not.
+
+    BAD:
+      "No account found" → attacker learns valid emails
+      "Reset email sent" → attacker knows email is registered
+
+    GOOD:
+      Always: "If that email exists, a reset link was sent."
+      Attacker learns nothing about which emails are registered.
+      This is called "user enumeration prevention".
+    """
+    from app.services.password_reset import generate_reset_token, get_token_expiry
+    from app.services.mailer import send_reset_email
+    from flask import url_for
+
+    data  = request.get_json() or {}
+    email = data.get('email', '').strip().lower()
+
+    if not email:
+        return error("Email is required.", 400)
+
+    # Always return success — never reveal if email exists
+    SAFE_RESPONSE = success({
+        "message": "If that email address is registered, a reset link has been sent."
+    })
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        # User not found — return same response anyway
+        logger.info("Password reset requested for unknown email: %s", email)
+        return SAFE_RESPONSE
+
+    if not user.is_active:
+        logger.info("Password reset for inactive user: %s", user.username)
+        return SAFE_RESPONSE
+
+    # Generate secure token
+    raw_token, token_hash = generate_reset_token()
+
+    # Save hash to DB — never the raw token
+    user.reset_token_hash   = token_hash
+    user.reset_token_expiry = get_token_expiry()
+    user.reset_token_used   = False
+    db.session.commit()
+
+    # Build reset URL — points to frontend reset page
+    reset_url = f"{request.host_url}reset-password?token={raw_token}"
+
+    # Send email — if it fails, log but don't crash
+    sent = send_reset_email(user.email, user.username, reset_url)
+    if not sent:
+        logger.error("Failed to send reset email for user: %s", user.username)
+
+    logger.info("Password reset initiated for user: %s", user.username)
+    return SAFE_RESPONSE
+
+
+@auth_bp.route("/reset-password", methods=["POST"])
+@limiter.limit("10 per hour")
+def reset_password():
+    """
+    POST /api/auth/reset-password
+    Body: { "token": "raw_token", "password": "NewPass123!" }
+
+    Validates the token then updates the password.
+    Token is invalidated after use — cannot be replayed.
+    """
+    from app.services.password_reset import validate_reset_token, clear_reset_token
+
+    data     = request.get_json() or {}
+    token    = data.get('token', '').strip()
+    password = data.get('password', '').strip()
+
+    if not token or not password:
+        return error("Token and new password are required.", 400)
+
+    # Basic password strength check
+    if len(password) < 8:
+        return error("Password must be at least 8 characters.", 400)
+
+    # Find user by hashing the submitted token and looking up the hash
+    from app.services.password_reset import hash_token
+    token_hash = hash_token(token)
+    user = User.query.filter_by(reset_token_hash=token_hash).first()
+
+    if not user:
+        return error("Invalid or expired reset link.", 400)
+
+    # Validate token fully
+    is_valid, reason = validate_reset_token(user, token)
+    if not is_valid:
+        return error(reason, 400)
+
+    # Update password
+    user.set_password(password)
+
+    # Invalidate token — one-time use only
+    clear_reset_token(user)
+
+    db.session.commit()
+
+    logger.info("Password reset successful for user: %s", user.username)
+    return success({"message": "Password updated successfully. You can now log in."})
