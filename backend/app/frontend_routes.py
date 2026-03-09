@@ -107,3 +107,7 @@ def forgot_password_page():
 @frontend_bp.route("/reset-password")
 def reset_password_page():
     return send_from_directory(os.path.join(FRONTEND_DIR, "pages"), "reset-password.html")
+
+@frontend_bp.route("/history")
+def history_page():
+    return send_from_directory(os.path.join(FRONTEND_DIR, "pages"), "history.html")
