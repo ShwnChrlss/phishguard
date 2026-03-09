@@ -114,3 +114,11 @@ limiter = Limiter(
     default_limits=[],          # no global limit — set per route
     storage_uri="memory://",
 )
+
+# ── EMAIL ─────────────────────────────────────────────────────
+# Flask-Mail handles sending emails via SMTP.
+# Config keys it reads from app.config:
+#   MAIL_SERVER, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD
+#   MAIL_USE_TLS, MAIL_DEFAULT_SENDER
+from flask_mail import Mail
+mail = Mail()

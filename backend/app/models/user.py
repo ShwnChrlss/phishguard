@@ -68,6 +68,15 @@ class User(db.Model):
     quiz_total      = db.Column(db.Integer, default=0)
     training_badges = db.Column(db.Text, default="")  # comma-separated
 
+    # ── PASSWORD RESET ────────────────────────────────────────
+    # CONCEPT: We store the SHA256 HASH of the token, not the
+    # raw token itself. If the DB is breached, the attacker
+    # gets hashes — useless without the raw token which only
+    # ever existed in the reset email.
+    reset_token_hash  = db.Column(db.String(64),  nullable=True)
+    reset_token_expiry = db.Column(db.DateTime,   nullable=True)
+    reset_token_used  = db.Column(db.Boolean,     default=False)
+
     # ── RELATIONSHIPS ─────────────────────────────────────────
     # CONCEPT: db.relationship()
     # Links this model to another. "EmailScan" is a string to

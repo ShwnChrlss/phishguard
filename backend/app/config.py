@@ -108,6 +108,22 @@ class BaseConfig:
     LOG_LEVEL: str = "INFO"
 
 
+    # ── EMAIL (Flask-Mail) ───────────────────────────────────
+    # CONCEPT: Mailtrap for development
+    # Mailtrap is a fake SMTP inbox — catches all outgoing emails
+    # without actually delivering them. Perfect for development.
+    # Sign up free at https://mailtrap.io
+    # Then set these in your .env file:
+    #   MAIL_USERNAME=your_mailtrap_username
+    #   MAIL_PASSWORD=your_mailtrap_password
+    MAIL_SERVER:   str  = os.environ.get('MAIL_SERVER',   'sandbox.smtp.mailtrap.io')
+    MAIL_PORT:     int  = int(os.environ.get('MAIL_PORT', '2525'))
+    MAIL_USE_TLS:  bool = True
+    MAIL_USERNAME: str  = os.environ.get('MAIL_USERNAME', '')
+    MAIL_PASSWORD: str  = os.environ.get('MAIL_PASSWORD', '')
+    MAIL_DEFAULT_SENDER: str = os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@phishguard.local')
+
+
 class DevelopmentConfig(BaseConfig):
     """
     Your LOCAL laptop environment.
