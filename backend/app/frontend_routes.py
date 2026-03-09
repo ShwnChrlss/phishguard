@@ -100,3 +100,10 @@ def serve_js(filename):
 @frontend_bp.route("/assets/<path:filename>")
 def serve_assets(filename):
     return send_from_directory(os.path.join(FRONTEND_DIR, "assets"), filename)
+@frontend_bp.route("/forgot-password")
+def forgot_password_page():
+    return send_from_directory(os.path.join(FRONTEND_DIR, "pages"), "forgot-password.html")
+
+@frontend_bp.route("/reset-password")
+def reset_password_page():
+    return send_from_directory(os.path.join(FRONTEND_DIR, "pages"), "reset-password.html")

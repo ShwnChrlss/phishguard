@@ -51,7 +51,7 @@ from dotenv import load_dotenv
 # for every KEY=VALUE line it finds.
 load_dotenv()
 
-from .extensions import db, migrate, cors, limiter
+from .extensions import db, migrate, cors, limiter, mail
 from .config import get_config
 
 
@@ -143,6 +143,7 @@ def create_app(config_override=None):
         },
     )
     limiter.init_app(app)
+    mail.init_app(app)
 
     # ── 5. REGISTER BLUEPRINTS ────────────────────────────────
     # CONCEPT: Blueprints
