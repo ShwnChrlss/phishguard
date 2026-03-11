@@ -185,8 +185,12 @@ def create_app(config_override=None):
         # Create all tables that don't exist yet.
         # Safe to call multiple times — skips existing tables.
         # For schema CHANGES to existing tables, use Flask-Migrate.
-        db.create_all()
-        logger.info("Database tables verified ✓")
+        db_url = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+        if db_url.startswith("sqlite"):
+            db.create_all()
+            logger.info("Database tables verified ✓")
+        else:
+            logger.info("Database tables verified ✓ (Alembic manages schema)")
 
     # ── 7. REGISTER ERROR HANDLERS ────────────────────────────
     # By default Flask returns HTML error pages.

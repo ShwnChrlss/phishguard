@@ -1,0 +1,41 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Environment & secrets
+.env
+*.env
+
+# Database (dev only — production uses PostgreSQL)
+*.db
+*.sqlite
+instance/
+
+# Git
+.git/
+.gitignore
+
+# Tests
+tests/
+pytest_cache/
+.coverage
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Docker
+docker-compose.override.yml

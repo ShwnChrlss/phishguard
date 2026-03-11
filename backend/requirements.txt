@@ -14,90 +14,235 @@
 #    today and tomorrow could give different versions.
 #
 #  SETUP ORDER (run these once, inside /backend):
-#    1. python -m venv venv          ← create isolated environment
-#    2. source venv/bin/activate     ← Mac/Linux
-#       venv\Scripts\activate        ← Windows
+#    1. python3 -m venv .venv        <- create isolated environment
+#    2. source .venv/bin/activate    <- Mac/Linux
+#       .venv\Scripts\activate       <- Windows
 #    3. pip install -r requirements.txt
 #
-#  You'll know venv is active when your prompt shows (venv):
-#    (venv) C:\phishguard\backend>
+#  You'll know venv is active when your prompt shows (.venv):
+#    (.venv) shwn@shwn-PC:~/code/phishguard$
+#
+#  DOCKER NOTE:
+#    Inside Docker, pip install runs during the image build.
+#    No .venv needed — the container IS the isolated environment.
+#    The Dockerfile copies this file and runs pip install
+#    before copying application code (layer caching optimization).
 # =============================================================
 
 
-# ── WEB FRAMEWORK ─────────────────────────────────────────────
+# -- WEB FRAMEWORK ---------------------------------------------
 # Flask     : core web framework. Turns Python functions into
 #             HTTP endpoints a browser can call.
-# Flask-CORS: browsers block JS on port 5500 calling an API on
-#             port 5000 by default. This adds the headers that
-#             tell the browser "cross-origin is allowed here".
+#             A "route" maps a URL to a Python function:
+#               @app.route('/api/detect', methods=['POST'])
+#               def detect(): ...
+#
+# Flask-CORS: browsers enforce the Same-Origin Policy — JS on
+#             localhost:5500 is blocked from calling an API on
+#             localhost:5000 by default. CORS adds response
+#             headers like 'Access-Control-Allow-Origin: *'
+#             that tell the browser "cross-origin is allowed here".
+#             In production, restrict this to your actual domain.
 Flask==3.0.3
 Flask-CORS==4.0.1
 
 
-# ── DATABASE ──────────────────────────────────────────────────
-# Flask-SQLAlchemy: ORM — lets you write Python classes instead
-#             of raw SQL. A class = a table, an instance = a row.
-# Flask-Migrate   : tracks schema changes over time (like Git
-#             for your database). Add a column → create a
-#             migration → apply it without losing existing data.
+# -- DATABASE --------------------------------------------------
+# Flask-SQLAlchemy: ORM (Object Relational Mapper) — lets you
+#             write Python classes instead of raw SQL.
+#             A class = a table. An instance = a row.
+#             Supports SQLite (dev), PostgreSQL (prod), MySQL, etc.
+#             Switching databases = change one config URL.
+#
+# Flask-Migrate   : tracks schema changes over time — like Git
+#             for your database. When you add a column:
+#               flask db migrate -m "add gmail_connected to users"
+#               flask db upgrade
+#             This generates a versioned migration file and applies
+#             it without losing existing data. Critical for
+#             production where you cannot just delete the DB.
 Flask-SQLAlchemy==3.1.1
 Flask-Migrate==4.0.7
 
 
-# ── AUTHENTICATION ────────────────────────────────────────────
-# PyJWT  : creates and verifies JSON Web Tokens (login tokens).
-#          After login, the server gives the user a signed token.
-#          They send it with every request to prove who they are.
-# bcrypt : one-way password hashing. NEVER store plain passwords.
-#          Even if your DB leaks, bcrypt hashes are useless to
-#          attackers. It is intentionally slow to resist brute-force.
+# -- AUTHENTICATION --------------------------------------------
+# PyJWT  : creates and verifies JSON Web Tokens (JWTs).
+#          Flow:
+#            1. User logs in with username + password
+#            2. Server verifies credentials, creates a signed token:
+#               {"user_id": 1, "exp": <1hr from now>}
+#            3. Client stores token, sends it with every request
+#            4. Server verifies signature — no DB lookup needed
+#          The token is signed with SECRET_KEY using HS256 algorithm.
+#          If anyone tampers with the payload, the signature breaks.
+#
+# bcrypt : one-way password hashing algorithm.
+#          NEVER store plain-text passwords. Ever.
+#          bcrypt(password + salt) -> hash stored in DB.
+#          On login: bcrypt.check_password_hash(stored, attempt)
+#          Why bcrypt over MD5/SHA256?
+#            bcrypt is intentionally slow (configurable cost factor).
+#            MD5 can be brute-forced at 10 billion attempts/second.
+#            bcrypt: ~100 attempts/second. Makes brute force impractical.
 PyJWT==2.8.0
 bcrypt==4.1.3
 
 
-# ── MACHINE LEARNING (used from Phase 2 onward) ───────────────
-# scikit-learn : TF-IDF vectorizer, Random Forest, accuracy tools.
-# numpy        : fast numeric arrays. scikit-learn needs this.
-# pandas       : spreadsheet-style data handling. Good for CSVs.
-# joblib       : save/load trained models to disk so we train
-#                once and serve instantly on every restart.
+# -- MACHINE LEARNING ------------------------------------------
+# scikit-learn : ML framework used for phishing detection.
+#                Components used in PhishGuard:
+#                  TfidfVectorizer         -- converts email text to numbers
+#                  RandomForestClassifier  -- the detection model
+#                  train_test_split        -- splits data for evaluation
+#                  accuracy_score          -- measures model performance
+#
+# numpy        : fast numeric array library. scikit-learn requires
+#                it. All ML data is represented as numpy arrays.
+#                TF-IDF output is a numpy matrix where each row = one
+#                email, each column = one word's weighted score.
+#
+# pandas       : spreadsheet-style data handling. Used for loading
+#                training data from CSV files, cleaning data, and
+#                splitting into features (X) and labels (y).
+#
+# joblib       : serialises Python objects to disk efficiently.
+#                Used to save/load the trained model:
+#                  joblib.dump(model, 'model.pkl')   <- after training
+#                  joblib.load('model.pkl')           <- on server start
+#                Without this, we would retrain on every server restart.
 scikit-learn==1.4.2
 numpy==1.26.4
 pandas==2.2.2
 joblib==1.4.2
 
 
-# ── TEXT & EMAIL PROCESSING (Phase 2) ────────────────────────
-# nltk         : tokenisation, stopwords, stemming.
+# -- TEXT & EMAIL PROCESSING -----------------------------------
+# nltk         : Natural Language Toolkit.
+#                Used for: tokenisation (splitting text into words),
+#                stopword removal ("the", "a", "is" add no signal),
+#                stemming (running -> run, phishing -> phish).
+#                Requires downloading data on first run:
+#                  import nltk; nltk.download('stopwords')
+#
 # regex        : more powerful than Python's built-in re module.
-# mail-parser  : parses raw .eml files and extracts headers,
-#                body, and attachments cleanly.
+#                Supports Unicode categories, atomic groups —
+#                useful for URL extraction from encoded email bodies.
+#
+# mail-parser  : parses raw .eml files (MIME format) cleanly.
+#                Handles multipart emails (text + HTML + attachments),
+#                decodes quoted-printable and base64 payloads,
+#                extracts headers (From, Subject, Date, Received).
+#                Core of the .eml upload feature (v0.2.0).
 nltk==3.8.1
 regex==2024.5.15
 mail-parser==3.15.0
 
 
-# ── HTTP / INTEGRATIONS (Phase 6) ────────────────────────────
-# requests : standard Python HTTP client used for Slack
-#            webhooks and any external API calls.
+# -- RATE LIMITING ---------------------------------------------
+# Flask-Limiter : sliding window rate limiting per IP address.
+#                 Protects endpoints from:
+#                   Brute force  -- login: 10 attempts per 15 min
+#                   DoS attacks  -- detect: 100 scans per hour
+#                   Enumeration  -- forgot-password: 5 per hour
+#                 Storage backends:
+#                   memory://    -> dev only, resets on restart
+#                   redis://...  -> production, persists and is shared
+#                                   across all Gunicorn workers
+Flask-Limiter==4.1.1
+
+
+# -- EMAIL -----------------------------------------------------
+# Flask-Mail   : sends emails via SMTP.
+#                Used for: password reset emails (v0.4.0).
+#                Configured via .env:
+#                  MAIL_SERVER, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD
+#                Dev:  Mailtrap sandbox (captures emails, no real delivery)
+#                Prod: Any SMTP provider (SendGrid, Mailtrap Live, etc.)
+Flask-Mail==0.10.0
+
+
+# -- HTTP / EXTERNAL INTEGRATIONS ------------------------------
+# requests     : standard Python HTTP client.
+#                Used for VirusTotal API v3 (URL reputation checks).
+#                Always set timeouts: requests.get(url, timeout=10)
+#                Without a timeout, a slow external API can hang
+#                your entire server indefinitely.
 requests==2.32.3
 
 
-# ── PDF REPORTS (Phase 6) ────────────────────────────────────
+# -- PDF REPORTS -----------------------------------------------
+# reportlab    : generates PDF files programmatically.
+#                Used for: incident response reports, scan exports.
+#                Future: executive dashboards, compliance reports.
 reportlab==4.2.2
 
 
-# ── TESTING (Phase 6) ────────────────────────────────────────
-# pytest       : discovers test_*.py files and runs them.
-# pytest-flask : Flask helpers for testing routes without a
-#                real running server.
-# Faker        : generates realistic fake names, emails, text.
+# -- PRODUCTION SERVER -----------------------------------------
+# gunicorn     : production-grade WSGI server.
+#                Flask's built-in server is single-threaded and
+#                explicitly warns "do not use in production".
+#                Gunicorn spawns multiple worker processes:
+#                  --workers 4   -> 4 parallel processes
+#                  --threads 2   -> 2 threads per worker
+#                = 8 requests handled simultaneously.
+#                Nginx sits in front of Gunicorn as a reverse proxy,
+#                handling SSL, static files, and slow clients.
+gunicorn==22.0.0
+
+
+# -- POSTGRESQL ADAPTER ----------------------------------------
+# psycopg2-binary : the bridge between SQLAlchemy and PostgreSQL.
+#                SQLite limitations in production:
+#                  - One writer at a time (blocks concurrent scans)
+#                  - Cannot be on a separate server
+#                  - Poor performance beyond ~100,000 rows
+#                PostgreSQL solves all of these.
+#                The -binary variant bundles the C library — no need
+#                to install libpq-dev separately on the host.
+#                The Dockerfile installs libpq-dev explicitly anyway
+#                for maximum reliability across environments.
+psycopg2-binary==2.9.9
+
+
+# -- REDIS CLIENT ----------------------------------------------
+# redis        : Python client for the Redis in-memory data store.
+#                Used by:
+#                  Flask-Limiter -> rate limit counters per IP
+#                  VT cache      -> URL reputation results (24hr TTL)
+#                Why Redis over memory://?
+#                  memory:// is per-process. With 4 Gunicorn workers,
+#                  each has its own counter — user gets 4x the limit.
+#                  Redis is shared: one counter across all workers.
+#                  Redis also persists across restarts — memory:// resets.
+redis==5.0.6
+
+
+# -- TESTING ---------------------------------------------------
+# pytest       : discovers and runs test_*.py files automatically.
+#                Provides assertions, fixtures, and test isolation.
+#                Run all tests: pytest backend/tests/ -v
+#
+# pytest-flask : Flask-specific helpers:
+#                  test_client() -> make HTTP requests without a server
+#                  app context   -> access db, config inside tests
+#
+# Faker        : generates realistic fake data for tests.
+#                Faker().email() -> "john.doe@example.com"
+#                Faker().text()  -> realistic paragraph of text
+#                Avoids hardcoded test strings that look obviously fake.
 pytest==8.2.2
 pytest-flask==1.3.0
 Faker==25.9.2
 
 
-# ── UTILITIES ─────────────────────────────────────────────────
-# python-dotenv : reads your .env file into os.environ so
-#                 secret keys never have to live in code.
+# -- UTILITIES -------------------------------------------------
+# python-dotenv : reads .env file into os.environ at startup.
+#                 Keeps all secrets out of source code.
+#                 .env is in .gitignore — never committed to GitHub.
+#                 Pattern:
+#                   .env:        SECRET_KEY=abc123
+#                   config.py:   SECRET_KEY = os.environ.get('SECRET_KEY')
+#                 In Docker, variables come from docker-compose.yml
+#                 env_file directive — python-dotenv is still used
+#                 as a fallback for local development.
 python-dotenv==1.0.1

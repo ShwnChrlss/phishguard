@@ -109,10 +109,17 @@ cors = CORS()
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
+# REDIS_URL from environment → use Redis (production/Docker)
+# Fallback to memory:// → SQLite dev mode (no Redis needed locally)
+# WHY Redis for production:
+#   memory:// resets every restart and doesn't work across
+#   multiple Gunicorn workers. Redis is shared across all workers
+#   and persists across restarts.
+import os as _os
 limiter = Limiter(
     key_func=get_remote_address,
-    default_limits=[],          # no global limit — set per route
-    storage_uri="memory://",
+    default_limits=[],
+    storage_uri=_os.environ.get("REDIS_URL", "memory://"),
 )
 
 # ── EMAIL ─────────────────────────────────────────────────────
