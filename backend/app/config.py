@@ -59,9 +59,15 @@ class BaseConfig:
     # SQLAlchemy reads this URL to know what database to connect.
     # Format: dialect://user:password@host:port/database_name
     # SQLite shortcut: sqlite:///filename.db (3 slashes = relative path)
-    SQLALCHEMY_DATABASE_URI: str = os.environ.get(
-        "DATABASE_URL",
-        "sqlite:///phishguard.db"
+    # DATABASE_URL environment variable takes priority.
+    # Docker sets: postgresql://phishguard:pass@db:5432/phishguard_db
+    # Local dev falls back to SQLite (no Docker needed for dev).
+    # NOTE: SQLAlchemy 1.4+ requires postgresql:// not postgres://
+    # Heroku and some tools still output postgres:// — we fix it here.
+    _db_url: str = os.environ.get("DATABASE_URL", "sqlite:///phishguard.db")
+    SQLALCHEMY_DATABASE_URI: str = (
+        _db_url.replace("postgres://", "postgresql://", 1)
+        if _db_url.startswith("postgres://") else _db_url
     )
 
     # SQLAlchemy can fire events on every object modification.
