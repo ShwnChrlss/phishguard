@@ -1,81 +1,122 @@
-# =============================================================
-#  docker-compose.yml — Run PhishGuard with one command
+# ─────────────────────────────────────────────────────────────
+# PhishGuard AI — Docker Compose (Development + Staging)
 #
-#  CONCEPT: Docker & Docker Compose
+# SERVICES:
+#   app     Flask application (Gunicorn)
+#   db      PostgreSQL 16 database
+#   redis   Redis 7 cache + rate limit storage
+#   nginx   Reverse proxy + static file server
 #
-#  Docker packages your app + all its dependencies into a
-#  "container" — a lightweight isolated environment that runs
-#  identically on any machine. No more "it works on my laptop".
-#
-#  Docker Compose defines MULTIPLE containers and how they
-#  talk to each other. PhishGuard has two services:
-#    backend  → Flask + Python (runs the API)
-#    frontend → Nginx (serves the HTML/CSS/JS files)
-#
-#  HOW TO USE:
-#    1. Install Docker Desktop: https://www.docker.com/products/docker-desktop
-#    2. From the project root:
-#         docker-compose up --build
-#    3. Open: http://localhost:5000  (API)
-#             http://localhost:8080  (Frontend)
-#    4. Stop:  docker-compose down
-#
-#  First run takes 2-3 minutes (downloads Python, installs packages).
-#  Subsequent runs start in seconds.
-# =============================================================
+# USAGE:
+#   Start:   docker-compose up --build
+#   Stop:    docker-compose down
+#   Logs:    docker-compose logs -f
+#   Shell:   docker-compose exec app bash
+#   DB CLI:  docker-compose exec db psql -U phishguard -d phishguard_db
+# ─────────────────────────────────────────────────────────────
 
-version: "3.9"
+version: '3.8'
 
 services:
 
-  # ── FLASK BACKEND ─────────────────────────────────────────
-  backend:
+  # ── APPLICATION ─────────────────────────────────────────────
+  app:
     build:
-      context: ./backend
-      dockerfile: Dockerfile.backend
-    container_name: phishguard-backend
-    ports:
-      - "5000:5000"        # host:container — visit localhost:5000
-    volumes:
-      - ./backend:/app     # live-reload: changes on disk → inside container
-      - ./backend/instance:/app/instance  # persist the SQLite database
-      - ./backend/ml/saved_models:/app/ml/saved_models  # persist trained model
+      context: .           # build from project root
+      dockerfile: Dockerfile
+    container_name: phishguard_app
+    restart: unless-stopped
+    env_file:
+      - backend/.env       # loads all environment variables
     environment:
-      - FLASK_ENV=development
-      - SECRET_KEY=change-me-in-production
-      - JWT_SECRET_KEY=change-me-in-production
-      # Optional — add your Slack webhook here:
-      # - SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
-    command: python run.py
-    restart: unless-stopped
-
-  # ── NGINX FRONTEND ────────────────────────────────────────
-  frontend:
-    image: nginx:alpine   # tiny pre-built Nginx image (~25MB)
-    container_name: phishguard-frontend
-    ports:
-      - "8080:80"          # visit localhost:8080
+      # Override SQLite URL with PostgreSQL
+      # Format: postgresql://user:password@host:port/dbname
+      # 'db' is the service name — Docker resolves it to the
+      # PostgreSQL container's internal IP automatically.
+      DATABASE_URL: postgresql://phishguard:phishguard_pass@db:5432/phishguard_db
+      REDIS_URL: redis://redis:6379/0
+      FLASK_ENV: development
     volumes:
-      - ./frontend:/usr/share/nginx/html  # serve our HTML files
+      # Bind mount for live code reload during development.
+      # Changes to backend/ on your machine reflect instantly
+      # inside the container — no rebuild needed.
+      - ./backend:/app
+      - ./frontend:/app/frontend
+      - ./data:/app/data
     depends_on:
-      - backend            # start backend before frontend
-    restart: unless-stopped
+      db:
+        condition: service_healthy   # wait for DB health check
+      redis:
+        condition: service_started
+    networks:
+      - phishguard_net
+    # Don't expose port directly — Nginx is the public face
+    expose:
+      - "5000"
 
-# =============================================================
-#  To add a real database (PostgreSQL) for production,
-#  uncomment this section and update SQLALCHEMY_DATABASE_URI:
-#
-#  db:
-#    image: postgres:16-alpine
-#    environment:
-#      POSTGRES_DB: phishguard
-#      POSTGRES_USER: pguser
-#      POSTGRES_PASSWORD: pgpassword
-#    volumes:
-#      - postgres_data:/var/lib/postgresql/data
-#    ports:
-#      - "5432:5432"
-#
-# volumes:
-#   postgres_data:
-# =============================================================
+  # ── DATABASE ────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine    # alpine = smaller image
+    container_name: phishguard_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: phishguard
+      POSTGRES_PASSWORD: phishguard_pass
+      POSTGRES_DB: phishguard_db
+    volumes:
+      # Named volume — data persists even if container is removed
+      # Stored at /var/lib/docker/volumes/phishguard_postgres_data
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - phishguard_net
+    # Health check — app container waits for this to pass
+    # pg_isready checks if PostgreSQL is accepting connections
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U phishguard -d phishguard_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432"   # expose for local DB tools (TablePlus, DBeaver)
+
+  # ── CACHE & RATE LIMIT STORAGE ──────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: phishguard_redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data    # persist cache across restarts
+    networks:
+      - phishguard_net
+    ports:
+      - "6379:6379"         # expose for local Redis tools
+
+  # ── REVERSE PROXY ───────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: phishguard_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"             # HTTP — the public port
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./frontend:/var/www/html:ro   # serve static files directly
+    depends_on:
+      - app
+    networks:
+      - phishguard_net
+
+# ── VOLUMES ─────────────────────────────────────────────────
+# Named volumes are managed by Docker.
+# They persist independently of containers.
+volumes:
+  postgres_data:
+  redis_data:
+
+# ── NETWORKS ────────────────────────────────────────────────
+# A custom bridge network so containers can reach each other
+# by service name (e.g. 'db', 'redis') instead of IP address.
+# Containers on this network are isolated from other Docker networks.
+networks:
+  phishguard_net:
+    driver: bridge
