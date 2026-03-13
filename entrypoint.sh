@@ -17,6 +17,7 @@
 set -e  # exit immediately on any error
 
 echo "⏳ Waiting for PostgreSQL..."
+echo "DEBUG DATABASE_URL=[$DATABASE_URL]"
 
 # Retry loop — try to connect every 2 seconds, up to 30 tries (60s)
 until python3 -c "
