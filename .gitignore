@@ -68,3 +68,6 @@ desktop.ini
 
 
 
+# Allow metadata.json even though pkl files are ignored
+
+# Allow metadata.json even though pkl files are ignored

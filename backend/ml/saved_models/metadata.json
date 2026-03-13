@@ -1,35 +1,35 @@
 {
   "model_name": "random_forest",
-  "trained_at": "2026-03-03T16:41:59.494716",
+  "trained_at": "2026-03-13T05:52:26.858506",
   "metrics": {
-    "accuracy": 1.0,
-    "precision": 1.0,
-    "recall": 1.0,
-    "f1_score": 1.0,
-    "roc_auc": 1.0,
+    "accuracy": 0.9838,
+    "precision": 0.9988,
+    "recall": 0.9687,
+    "f1_score": 0.9835,
+    "roc_auc": 0.9993,
     "confusion_matrix": [
       [
-        4,
-        0
+        894,
+        1
       ],
       [
-        0,
-        4
+        28,
+        866
       ]
     ],
-    "true_negatives": 4,
-    "false_positives": 0,
-    "false_negatives": 0,
-    "true_positives": 4,
-    "cv_f1_mean": 0.9,
-    "cv_f1_std": 0.2,
-    "training_time_seconds": 0.57,
-    "n_train": 32,
-    "n_test": 8,
+    "true_negatives": 894,
+    "false_positives": 1,
+    "false_negatives": 28,
+    "true_positives": 866,
+    "cv_f1_mean": 0.9861,
+    "cv_f1_std": 0.0043,
+    "training_time_seconds": 7.17,
+    "n_train": 7155,
+    "n_test": 1789,
     "model_name": "random_forest",
-    "trained_at": "2026-03-03T16:41:59.494716"
+    "trained_at": "2026-03-13T05:52:26.858506"
   },
-  "n_features": 140,
+  "n_features": 5035,
   "n_tfidf_features": 5000,
   "feature_extractor_features": [
     "url_count",
