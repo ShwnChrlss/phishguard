@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PhishGuard — ML Dashboard</title>
+  <link rel="stylesheet" href="/css/variables.css" />
+  <link rel="stylesheet" href="/css/themes.css" />
+  <script src="/js/core/theme.js"></script>
+  <link rel="stylesheet" href="/css/base.css" />
+  <link rel="stylesheet" href="/css/components.css" />
+  <link rel="stylesheet" href="/css/layout.css" />
+  <link rel="stylesheet" href="/css/animations.css" />
+  <link rel="stylesheet" href="/css/pages.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── ML Dashboard local styles — extend app theme ─────── */
+    .ml-shell-status {
+      border-color: color-mix(in srgb, var(--accent) 26%, var(--border));
+      background: color-mix(in srgb, var(--accent) 7%, transparent);
+      color: var(--accent);
+    }
+
+    .ml-shell-status .status-dot {
+      background: var(--accent);
+      box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 65%, transparent);
+    }
+
+    .ml-tabs { display:flex; border-bottom:1px solid var(--border); margin-bottom:24px; }
+    .ml-tab  { padding:9px 20px; cursor:pointer; font-size:0.75rem; letter-spacing:1px;
+               color:var(--text-dim); border-bottom:2px solid transparent; transition:all .2s;
+               font-family:var(--font-mono); text-transform:uppercase; }
+    .ml-tab:hover  { color:var(--accent); }
+    .ml-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+    .ml-pane { display:none; } .ml-pane.active { display:block; }
+
+    .ml-grid-6 { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin-bottom:20px; }
+    .ml-grid-2 { display:grid; grid-template-columns:2fr 1fr; gap:18px; margin-bottom:18px; }
+    .ml-grid-equal { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+
+    .ml-card { background:var(--surface2); border:1px solid var(--border); border-radius:6px;
+               padding:16px; text-align:center; position:relative; overflow:hidden; }
+    .ml-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--accent); }
+    .ml-card.good::before { background:var(--safe); }
+    .ml-card.warn::before { background:var(--warn); }
+    .ml-card.bad::before  { background:var(--danger); }
+    .ml-card-val  { font-size:1.7rem; font-weight:700; color:var(--text); line-height:1;
+                    font-family:var(--font-mono); }
+    .ml-card-lbl  { font-size:0.62rem; color:var(--text-dim); letter-spacing:1px;
+                    margin-top:6px; text-transform:uppercase; }
+
+    .ml-panel { background:var(--surface); border:1px solid var(--border);
+                border-radius:6px; padding:18px; margin-bottom:16px; }
+    .ml-panel-title { font-size:0.7rem; letter-spacing:1.5px; color:var(--accent);
+                      text-transform:uppercase; margin-bottom:14px; display:flex;
+                      justify-content:space-between; align-items:center;
+                      font-family:var(--font-mono); }
+
+    .ml-bar-wrap { display:flex; align-items:flex-end; gap:8px; height:90px; }
+    .ml-bar-col  { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; }
+    .ml-bar      { width:100%; border-radius:2px 2px 0 0; transition:height .5s ease; min-height:3px; }
+    .ml-bar.c0 { background:var(--safe);   opacity:.75; }
+    .ml-bar.c1 { background:var(--accent); opacity:.7; }
+    .ml-bar.c2 { background:var(--warn);   opacity:.75; }
+    .ml-bar.c3 { background:var(--high);   opacity:.75; }
+    .ml-bar.c4 { background:var(--danger); opacity:.8; }
+    .ml-bar-val { font-size:0.62rem; color:var(--text); font-family:var(--font-mono); }
+    .ml-bar-lbl { font-size:0.58rem; color:var(--text-dim); }
+
+    .ml-info-list { list-style:none; font-size:0.75rem; }
+    .ml-info-list li { display:flex; justify-content:space-between; padding:7px 0;
+                       border-bottom:1px solid var(--border); font-family:var(--font-mono); }
+    .ml-info-list li:last-child { border-bottom:none; }
+    .ml-info-key { color:var(--text-dim); }
+    .ml-info-val { color:var(--text); }
+
+    .ml-log { background:var(--bg); border:1px solid var(--border); border-radius:4px;
+              height:280px; overflow-y:auto; padding:10px; font-size:0.7rem;
+              font-family:var(--font-mono); }
+    .ml-log-line { margin:2px 0; line-height:1.5; }
+    .ml-log-line.INFO    { color:var(--text); }
+    .ml-log-line.SUCCESS { color:var(--safe); font-weight:700; }
+    .ml-log-line.ERROR   { color:var(--danger); }
+    .ml-log-line.WARNING { color:var(--warn); }
+    .ml-log-ts { color:var(--text-dim); margin-right:8px; }
+
+    .ml-cm { display:grid; grid-template-columns:auto 1fr 1fr; gap:4px; font-size:0.72rem; }
+    .ml-cm-lbl { color:var(--text-dim); display:flex; align-items:center; justify-content:center;
+                 padding:5px; font-size:0.6rem; letter-spacing:1px; }
+    .ml-cm-cell { border-radius:4px; padding:12px 6px; text-align:center; }
+    .ml-cm-val  { font-size:1.2rem; font-weight:700; font-family:var(--font-mono); }
+    .ml-cm-sub  { font-size:0.58rem; color:var(--text-dim); margin-top:3px; }
+    .ml-cm-tn { background:var(--safe-dim);  border:1px solid rgba(0,230,118,.3); } .ml-cm-tn .ml-cm-val { color:var(--safe); }
+    .ml-cm-fp { background:var(--warn-dim);  border:1px solid rgba(255,170, 0,.3); } .ml-cm-fp .ml-cm-val { color:var(--warn); }
+    .ml-cm-fn { background:var(--danger-dim);border:1px solid rgba(255, 59,92,.3); } .ml-cm-fn .ml-cm-val { color:var(--danger); }
+    .ml-cm-tp { background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.3); } .ml-cm-tp .ml-cm-val { color:var(--accent); }
+
+    .ml-run-tbl { width:100%; border-collapse:collapse; font-size:0.72rem; font-family:var(--font-mono); }
+    .ml-run-tbl th { color:var(--text-dim); text-align:left; padding:6px 10px;
+                     border-bottom:1px solid var(--border); font-weight:400; letter-spacing:1px; }
+    .ml-run-tbl td { padding:7px 10px; border-bottom:1px solid var(--border2); }
+    .ml-run-tbl tr:hover td { background:rgba(0,212,255,.04); }
+    .ml-empty { text-align:center; padding:36px; color:var(--text-dim); font-size:0.78rem; }
+    .dot-live { display:inline-block; width:8px; height:8px; border-radius:50%;
+                background:var(--safe); box-shadow:0 0 6px var(--safe); margin-right:6px; }
+    .dot-idle { display:inline-block; width:8px; height:8px; border-radius:50%;
+                background:var(--text-dim); margin-right:6px; }
+    .dot-err  { display:inline-block; width:8px; height:8px; border-radius:50%;
+                background:var(--danger); box-shadow:0 0 6px var(--danger); margin-right:6px; }
+
+    @media (max-width: 1080px) {
+      .ml-grid-6 {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .ml-grid-2,
+      .ml-grid-equal {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .ml-tabs {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        border-bottom: none;
+      }
+
+      .ml-tab {
+        border: 1px solid var(--border);
+        border-radius: 999px;
+      }
+
+      .ml-tab.active {
+        background: color-mix(in srgb, var(--accent) 12%, transparent);
+      }
+
+      .ml-grid-6 {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .ml-panel {
+        padding: 14px;
+      }
+
+      .ml-run-tbl {
+        min-width: 760px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .ml-grid-6 {
+        grid-template-columns: 1fr;
+      }
+
+      .ml-card-val {
+        font-size: 1.35rem;
+      }
+
+      .ml-cm {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .ml-cm-lbl {
+        writing-mode: initial !important;
+        transform: none !important;
+        grid-column: 1 / -1;
+      }
+
+      .ml-shell-status {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body data-page="ml_dashboard">
+
+<!-- TOPBAR — matches app exactly -->
+<div class="topbar">
+  <a class="topbar-logo" href="/dashboard">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V7L12 2z"/>
+      <path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    Phish<span>Guard</span>
+  </a>
+  <div class="topbar-status ml-shell-status">
+    <div class="status-dot" id="model-status-dot"></div>
+    <span id="model-status-text">MODEL OPS</span>
+  </div>
+  <div class="topbar-right">
+    <span class="user-badge">Signed in as <b id="topbar-username">—</b></span>
+    <button class="btn btn-ghost btn-sm" onclick="Auth.logout()">Logout</button>
+  </div>
+</div>
+
+<!-- SIDEBAR — uses app's native sidebar class + admin nav items -->
+<div class="sidebar">
+  <div class="nav-section">
+    <div class="nav-label">Main</div>
+    <a class="nav-item" data-page="dashboard" href="/dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      <span class="nav-item-text">Dashboard</span>
+    </a>
+    <a class="nav-item" data-page="analyzer" href="/detect">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <span class="nav-item-text">Detect Email</span>
+    </a>
+    <a class="nav-item" data-page="chatbot" href="/chat">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      <span class="nav-item-text">Security Chat</span>
+    </a>
+  </div>
+  <div class="nav-section admin-only hidden">
+    <div class="nav-label">Admin</div>
+    <a class="nav-item" data-page="admin_alerts" href="/alerts">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <span class="nav-item-text">Alerts</span>
+    </a>
+    <a class="nav-item" data-page="quarantine" href="/quarantine">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      <span class="nav-item-text">Quarantine</span>
+    </a>
+    <a class="nav-item" data-page="admin_users" href="/users">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+      <span class="nav-item-text">Users</span>
+    </a>
+    <a class="nav-item" data-page="reports" href="/reports">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      <span class="nav-item-text">Reports</span>
+    </a>
+    <a class="nav-item" data-page="history" href="/history">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+      <span class="nav-item-text">Scan History</span>
+    </a>
+    <a class="nav-item active" data-page="ml_dashboard" href="/ml-dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27,6.96 12,12.01 20.73,6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+      <span class="nav-item-text">ML Dashboard</span>
+    </a>
+    <a class="nav-item" data-page="status" href="/status" target="_blank">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      <span class="nav-item-text">System Status</span>
+    </a>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="page-header">
+    <h2>ML Dashboard</h2>
+    <p class="text-mono text-sm text-dim" id="last-updated">Loading model data…</p>
+  </div>
+
+  <div class="ml-tabs">
+    <div class="ml-tab active" data-tab="production">PRODUCTION</div>
+    <div class="ml-tab" data-tab="training">TRAINING</div>
+    <div class="ml-tab" data-tab="history">HISTORY</div>
+  </div>
+
+  <!-- PRODUCTION TAB -->
+  <div class="ml-pane active" id="ml-tab-production">
+    <div class="ml-grid-6" id="prod-cards">
+      <div class="ml-card"><div class="loading-spinner"></div></div>
+      <div class="ml-card"><div class="loading-spinner"></div></div>
+      <div class="ml-card"><div class="loading-spinner"></div></div>
+      <div class="ml-card"><div class="loading-spinner"></div></div>
+      <div class="ml-card"><div class="loading-spinner"></div></div>
+      <div class="ml-card"><div class="loading-spinner"></div></div>
+    </div>
+    <div class="ml-grid-2">
+      <div class="ml-panel">
+        <div class="ml-panel-title">
+          RISK SCORE DISTRIBUTION
+          <span class="text-dim text-sm">last 1,000 scans</span>
+        </div>
+        <div class="ml-bar-wrap" id="risk-bars"><div class="loading-spinner"></div></div>
+        <div style="display:flex;justify-content:space-around;margin-top:8px;">
+          <span class="text-dim text-sm">0–20</span>
+          <span class="text-dim text-sm">21–40</span>
+          <span class="text-dim text-sm">41–60</span>
+          <span class="text-dim text-sm">61–80</span>
+          <span class="text-dim text-sm">81–100</span>
+        </div>
+      </div>
+      <div class="ml-panel">
+        <div class="ml-panel-title">CURRENT MODEL</div>
+        <ul class="ml-info-list" id="model-info">
+          <li><span class="ml-info-key">Loading…</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="ml-panel">
+      <div class="ml-panel-title">
+        7-DAY SCAN TREND
+        <span class="text-dim text-sm">confidence · risk · volume</span>
+      </div>
+      <canvas id="trend-chart" height="60"></canvas>
+    </div>
+  </div>
+
+  <!-- TRAINING TAB -->
+  <div class="ml-pane" id="ml-tab-training">
+    <div class="ml-grid-equal">
+      <div>
+        <div class="ml-panel">
+          <div class="ml-panel-title">RETRAIN MODEL</div>
+          <p class="text-dim text-sm" style="margin-bottom:14px;line-height:1.7;">
+            Retrains on all datasets in
+            <code class="text-accent" style="font-family:var(--font-mono)">backend/ml/datasets/</code>.
+            Takes 1–3 min. Log streams live below.
+          </p>
+          <button class="btn btn-primary" id="btn-retrain" onclick="startRetrain()">
+            ▶ START RETRAINING
+          </button>
+          <span id="train-msg" class="text-dim text-sm" style="margin-left:14px;"></span>
+        </div>
+        <div class="ml-panel">
+          <div class="ml-panel-title">
+            TRAINING LOG
+            <span id="log-dot" class="dot-idle"></span>
+          </div>
+          <div class="ml-log" id="train-log">
+            <div class="ml-log-line INFO">
+              <span class="ml-log-ts">--:--:--</span>Waiting to start…
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="ml-panel">
+          <div class="ml-panel-title">RESULTS AFTER TRAINING</div>
+          <div id="result-empty" class="ml-empty">Run training to see results</div>
+          <div id="result-metrics" style="display:none">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;">
+              <div class="ml-card good"><div class="ml-card-val" id="r-acc">—</div><div class="ml-card-lbl">Accuracy</div></div>
+              <div class="ml-card good"><div class="ml-card-val" id="r-f1">—</div><div class="ml-card-lbl">F1 Score</div></div>
+              <div class="ml-card"><div class="ml-card-val" id="r-roc">—</div><div class="ml-card-lbl">ROC-AUC</div></div>
+              <div class="ml-card good"><div class="ml-card-val" id="r-pre">—</div><div class="ml-card-lbl">Precision</div></div>
+              <div class="ml-card warn"><div class="ml-card-val" id="r-rec">—</div><div class="ml-card-lbl">Recall</div></div>
+              <div class="ml-card"><div class="ml-card-val" id="r-cv">—</div><div class="ml-card-lbl">CV F1</div></div>
+            </div>
+            <div class="ml-panel-title">CONFUSION MATRIX</div>
+            <div class="ml-cm">
+              <div class="ml-cm-lbl"></div>
+              <div class="ml-cm-lbl">PRED SAFE</div>
+              <div class="ml-cm-lbl">PRED PHISH</div>
+              <div class="ml-cm-lbl" style="writing-mode:vertical-rl;transform:rotate(180deg)">REAL SAFE</div>
+              <div class="ml-cm-cell ml-cm-tn"><div class="ml-cm-val" id="cm-tn">—</div><div class="ml-cm-sub">True Neg ✓</div></div>
+              <div class="ml-cm-cell ml-cm-fp"><div class="ml-cm-val" id="cm-fp">—</div><div class="ml-cm-sub">False Pos ⚠</div></div>
+              <div class="ml-cm-lbl" style="writing-mode:vertical-rl;transform:rotate(180deg)">REAL PHISH</div>
+              <div class="ml-cm-cell ml-cm-fn"><div class="ml-cm-val" id="cm-fn">—</div><div class="ml-cm-sub">Missed 🚨</div></div>
+              <div class="ml-cm-cell ml-cm-tp"><div class="ml-cm-val" id="cm-tp">—</div><div class="ml-cm-sub">Caught ✓</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="ml-panel">
+          <div class="ml-panel-title">DATASET INFO</div>
+          <ul class="ml-info-list">
+            <li><span class="ml-info-key">Training samples</span><span class="ml-info-val" id="ds-train">—</span></li>
+            <li><span class="ml-info-key">Test samples</span><span class="ml-info-val" id="ds-test">—</span></li>
+            <li><span class="ml-info-key">CV strategy</span><span class="ml-info-val">5-fold stratified</span></li>
+            <li><span class="ml-info-key">Last trained</span><span class="ml-info-val" id="ds-date">—</span></li>
+            <li><span class="ml-info-key">Model features</span><span class="ml-info-val" id="ds-feats">—</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY TAB -->
+  <div class="ml-pane" id="ml-tab-history">
+    <div class="ml-panel">
+      <div class="ml-panel-title">ALL TRAINING RUNS</div>
+      <div id="history-container"><div class="ml-empty"><div class="loading-spinner"></div></div></div>
+    </div>
+  </div>
+</div><!-- /main -->
+
+<script src="/js/auth.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/utils.js"></script>
+<script src="/js/core/app-shell.js"></script>
+<script>
+// ── Init user display (same pattern as other pages) ──────────
+document.addEventListener('DOMContentLoaded', () => {
+  const user = JSON.parse(localStorage.getItem('pg_user') || '{}');
+  if (!Auth.requireAnalyst()) return;
+  document.getElementById('topbar-username').textContent = user.username || '—';
+  Utils.applyRoleVisibility();
+  loadProduction();
+  loadCurrentMetrics();
+  setInterval(loadProduction, 60000);
+});
+
+// ── Utilities ─────────────────────────────────────────────────
+const token = () => localStorage.getItem('pg_token');
+const hdrs  = () => ({ 'Authorization': `Bearer ${token()}`, 'Content-Type': 'application/json' });
+const pct   = v  => (v == null) ? '—' : `${(v*100).toFixed(1)}%`;
+const esc   = s  => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+let trendChart = null;
+let sse = null;
+
+// ── Tabs ──────────────────────────────────────────────────────
+document.querySelectorAll('.ml-tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.ml-tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.ml-pane').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('ml-tab-' + t.dataset.tab).classList.add('active');
+    if (t.dataset.tab === 'history') loadHistory();
+  });
+});
+
+// ════════════════════════════════════════════════════════════
+//  PRODUCTION TAB
+// ════════════════════════════════════════════════════════════
+async function loadProduction() {
+  try {
+    const [sRes, mRes] = await Promise.all([
+      fetch('/api/ml/production-stats', { headers: hdrs() }),
+      fetch('/api/ml/status',           { headers: hdrs() }),
+    ]);
+    if (sRes.status === 401) { window.location.href = '/login'; return; }
+
+    const sd = await sRes.json();
+    const md = await mRes.json();
+    // metadata.json stores metrics nested: data.model.metrics.*
+    const model  = (md.data || {}).model || {};
+    const mm     = model.metrics || {};
+    const stats  = sd.data  || {};
+
+    renderCards(mm, stats);
+    renderRiskBars(stats.risk_distribution || {});
+    renderModelInfo(model, mm);
+    if (stats.daily_trend) renderTrend(stats.daily_trend);
+    document.getElementById('last-updated').textContent =
+      `Updated ${new Date().toLocaleTimeString()}`;
+  } catch(e) {
+    console.error('Production load error:', e);
+    document.getElementById('prod-cards').innerHTML =
+      `<div class="ml-card bad" style="grid-column:1/-1">
+        <div class="ml-card-val" style="font-size:1rem">API Error</div>
+        <div class="ml-card-lbl">${esc(e.message)}</div>
+      </div>`;
+  }
+}
+
+function renderCards(mm, s) {
+  const n = mm.n_train || 0;
+  document.getElementById('prod-cards').innerHTML = `
+    <div class="ml-card ${n>1000?'good':'warn'}">
+      <div class="ml-card-val">${n.toLocaleString()}</div>
+      <div class="ml-card-lbl">Train Samples</div>
+    </div>
+    <div class="ml-card good">
+      <div class="ml-card-val">${pct(mm.accuracy)}</div>
+      <div class="ml-card-lbl">Accuracy</div>
+    </div>
+    <div class="ml-card ${(mm.recall||0)>=.9?'good':'warn'}">
+      <div class="ml-card-val">${pct(mm.recall)}</div>
+      <div class="ml-card-lbl">Recall</div>
+    </div>
+    <div class="ml-card">
+      <div class="ml-card-val">${(s.total_scans||0).toLocaleString()}</div>
+      <div class="ml-card-lbl">Total Scans</div>
+    </div>
+    <div class="ml-card">
+      <div class="ml-card-val">${s.scans_24h||0}</div>
+      <div class="ml-card-lbl">Scans 24h</div>
+    </div>
+    <div class="ml-card ${(s.phishing_rate||0)>40?'bad':'good'}">
+      <div class="ml-card-val">${s.phishing_rate||0}%</div>
+      <div class="ml-card-lbl">Phishing Rate</div>
+    </div>`;
+}
+
+function renderRiskBars(dist) {
+  const vals = Object.values(dist);
+  const maxV = Math.max(...vals, 1);
+  const cls  = ['c0','c1','c2','c3','c4'];
+  document.getElementById('risk-bars').innerHTML =
+    Object.entries(dist).map(([lbl,v],i) => {
+      const h = Math.max(4, (v/maxV)*85);
+      return `<div class="ml-bar-col">
+        <div class="ml-bar-val">${v}</div>
+        <div class="ml-bar ${cls[i]}" style="height:${h}%"></div>
+      </div>`;
+    }).join('');
+}
+
+function renderModelInfo(model, mm) {
+  const ta = model.trained_at ? new Date(model.trained_at).toLocaleDateString() : '—';
+  const fn = mm.false_negatives ?? '—';
+  document.getElementById('model-info').innerHTML = `
+    <li><span class="ml-info-key">Algorithm</span>
+        <span class="ml-info-val">${model.model_name||'—'}</span></li>
+    <li><span class="ml-info-key">Trained</span>
+        <span class="ml-info-val">${ta}</span></li>
+    <li><span class="ml-info-key">F1 Score</span>
+        <span class="ml-info-val">${pct(mm.f1_score)}</span></li>
+    <li><span class="ml-info-key">ROC-AUC</span>
+        <span class="ml-info-val">${(mm.roc_auc||0).toFixed(4)}</span></li>
+    <li><span class="ml-info-key">Features</span>
+        <span class="ml-info-val">${(model.n_features||0).toLocaleString()}</span></li>
+    <li><span class="ml-info-key">Missed 🚨</span>
+        <span class="ml-info-val" style="color:${fn>0?'var(--danger)':'var(--safe)'}">
+          ${fn} phishing emails</span></li>`;
+}
+
+function renderTrend(trend) {
+  const ctx = document.getElementById('trend-chart').getContext('2d');
+  if (trendChart) trendChart.destroy();
+  trendChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: trend.map(d => d.date),
+      datasets: [
+        { label:'Avg Confidence %', data:trend.map(d=>d.avg_confidence),
+          borderColor:'#00d4ff', backgroundColor:'rgba(0,212,255,.08)',
+          tension:.4, fill:true, pointRadius:3 },
+        { label:'Avg Risk Score', data:trend.map(d=>d.avg_risk_score),
+          borderColor:'#ff3b5c', backgroundColor:'rgba(255,59,92,.05)',
+          tension:.4, fill:false, pointRadius:3 },
+        { label:'Scan Count', data:trend.map(d=>d.scan_count),
+          borderColor:'#ffaa00', tension:.4, fill:false, pointRadius:3, yAxisID:'y2' },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:true,
+      plugins:{ legend:{ labels:{ color:'#5a6a80', font:{size:10}, boxWidth:12 } } },
+      scales:{
+        x:{ ticks:{color:'#5a6a80',font:{size:10}}, grid:{color:'#1e2530'} },
+        y:{ ticks:{color:'#5a6a80',font:{size:10}}, grid:{color:'#1e2530'}, max:100, min:0 },
+        y2:{ position:'right', ticks:{color:'#5a6a80',font:{size:10}}, grid:{display:false} },
+      }
+    }
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+//  TRAINING TAB
+// ════════════════════════════════════════════════════════════
+function addLog(level, msg) {
+  const box  = document.getElementById('train-log');
+  const time = new Date().toLocaleTimeString('en-GB', {hour12:false});
+  const line = document.createElement('div');
+  line.className = `ml-log-line ${level}`;
+  line.innerHTML = `<span class="ml-log-ts">${time}</span>${esc(msg)}`;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+}
+
+function startRetrain() {
+  const btn = document.getElementById('btn-retrain');
+  const msg = document.getElementById('train-msg');
+  const dot = document.getElementById('log-dot');
+
+  fetch('/api/ml/retrain', { method:'POST', headers:hdrs() })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error && data.error !== 'conflict') {
+        addLog('ERROR', data.message || 'Failed to start'); return;
+      }
+      btn.disabled = true;
+      btn.textContent = '⟳ TRAINING IN PROGRESS…';
+      msg.textContent = 'Streaming log…';
+      dot.className = 'dot-live';
+      document.getElementById('train-log').innerHTML = '';
+
+      if (sse) sse.close();
+      sse = new EventSource(`/api/ml/retrain/stream?token=${token()}`);
+
+      sse.onmessage = e => {
+        const parts = e.data.split(' | ');
+        const lvl   = parts[0] || 'INFO';
+        const text  = parts.slice(1).join(' | ');
+        if (lvl === 'TRAINING_DONE' || text.includes('TRAINING_DONE')) {
+          addLog('SUCCESS', '✓ Training complete — reloading metrics…');
+          return;
+        }
+        if (lvl === 'RELOAD_METRICS') { loadProduction(); loadCurrentMetrics(); return; }
+        if (lvl === 'STREAM_CLOSED') {
+          btn.disabled = false; btn.textContent = '▶ START RETRAINING';
+          msg.textContent = 'Done — model updated.';
+          dot.className = 'dot-idle'; sse.close(); return;
+        }
+        addLog(lvl === 'SUCCESS' ? 'SUCCESS' : lvl, text || lvl);
+      };
+      sse.onerror = () => {
+        addLog('ERROR', 'Stream disconnected');
+        btn.disabled = false; btn.textContent = '▶ START RETRAINING';
+        dot.className = 'dot-err';
+      };
+    })
+    .catch(e => addLog('ERROR', e.message));
+}
+
+async function loadCurrentMetrics() {
+  try {
+    const res  = await fetch('/api/ml/status', { headers: hdrs() });
+    const data = await res.json();
+    const model = (data.data || {}).model || {};
+    const mm    = model.metrics || {};
+    if (!mm.accuracy) return;
+    document.getElementById('r-acc').textContent = pct(mm.accuracy);
+    document.getElementById('r-f1').textContent  = pct(mm.f1_score);
+    document.getElementById('r-roc').textContent = (mm.roc_auc||0).toFixed(3);
+    document.getElementById('r-pre').textContent = pct(mm.precision);
+    document.getElementById('r-rec').textContent = pct(mm.recall);
+    document.getElementById('r-cv').textContent  = (mm.cv_f1_mean||0).toFixed(3);
+    document.getElementById('cm-tn').textContent = mm.true_negatives  ?? '—';
+    document.getElementById('cm-fp').textContent = mm.false_positives ?? '—';
+    document.getElementById('cm-fn').textContent = mm.false_negatives ?? '—';
+    document.getElementById('cm-tp').textContent = mm.true_positives  ?? '—';
+    document.getElementById('ds-train').textContent = (mm.n_train||0).toLocaleString();
+    document.getElementById('ds-test').textContent  = (mm.n_test||0).toLocaleString();
+    document.getElementById('ds-feats').textContent = (model.n_features||0).toLocaleString();
+    document.getElementById('ds-date').textContent  =
+      model.trained_at ? new Date(model.trained_at).toLocaleString() : '—';
+    document.getElementById('result-empty').style.display   = 'none';
+    document.getElementById('result-metrics').style.display = 'block';
+  } catch(e) { console.error('Metrics load error:', e); }
+}
+
+// ════════════════════════════════════════════════════════════
+//  HISTORY TAB
+// ════════════════════════════════════════════════════════════
+async function loadHistory() {
+  try {
+    const res  = await fetch('/api/ml/history', { headers: hdrs() });
+    const data = await res.json();
+    const runs = [...((data.data?.runs)||[])].reverse();
+    if (!runs.length) {
+      document.getElementById('history-container').innerHTML =
+        '<div class="ml-empty">No training runs yet</div>'; return;
+    }
+    const rows = runs.map((r,i) => {
+      const bc = r.f1_score>=.9 ? 'badge-safe' : r.f1_score>=.75 ? 'badge-warn' : 'badge-danger';
+      return `<tr>
+        <td class="text-mono">#${r.run_id}</td>
+        <td>${new Date(r.trained_at).toLocaleString()}</td>
+        <td class="text-mono">${(r.n_samples||0).toLocaleString()}</td>
+        <td class="text-mono">${pct(r.accuracy)}</td>
+        <td class="text-mono">${pct(r.precision)}</td>
+        <td class="text-mono">${pct(r.recall)}</td>
+        <td><span class="badge ${bc}">${pct(r.f1_score)}</span></td>
+        <td class="text-mono" style="color:${r.false_negatives>0?'var(--danger)':'var(--safe)'}">
+          ${r.false_negatives}</td>
+        <td class="text-mono">${r.training_time_seconds}s</td>
+        <td>${i===0?'<span class="badge badge-info">LATEST</span>':''}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('history-container').innerHTML = `
+      <table class="ml-run-tbl">
+        <thead><tr>
+          <th>Run</th><th>Date</th><th>Samples</th>
+          <th>Accuracy</th><th>Precision</th><th>Recall</th>
+          <th>F1</th><th>Missed</th><th>Time</th><th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  } catch(e) {
+    document.getElementById('history-container').innerHTML =
+      `<div class="ml-empty">Error: ${esc(e.message)}</div>`;
+  }
+}
+</script>
+</body>
+</html>

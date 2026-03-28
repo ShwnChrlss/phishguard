@@ -15,6 +15,13 @@
    SECURITY NOTE: We trust the exp field for UX purposes only.
    The backend ALWAYS re-validates the signature on every
    request. A client cannot fake a valid token.
+
+   Software security concept:
+   Authentication and authorisation are different problems.
+   - Authentication asks: "Who are you?"
+   - Authorisation asks: "What are you allowed to do?"
+   The token helps with both by carrying identity and role,
+   but the server remains the final source of truth.
    ============================================================= */
 
 const Auth = {
@@ -112,6 +119,9 @@ const Auth = {
 
   // ── GUARDS ───────────────────────────────────────────────
   // Call at the top of every protected page.
+  // These are UX guards, not trust boundaries. They improve the
+  // flow in the browser, but backend decorators still enforce
+  // the real security policy.
   requireAuth() {
     if (!this.isLoggedIn()) {
       window.location.href = '/login';

@@ -36,7 +36,44 @@
 # =============================================================
 
 import os
-from dotenv import load_dotenv
+import sys
+
+try:
+    from dotenv import load_dotenv
+except ModuleNotFoundError:
+    print(
+        "\nMissing python-dotenv. Use the project virtualenv and install deps:\n"
+        "  cd <phishguard-root> && python3 -m venv .venv\n"
+        "  source .venv/bin/activate\n"
+        "  .venv/bin/pip install -r requirements.txt\n"
+        "  cd backend && python3 run.py\n",
+        file=sys.stderr,
+    )
+    raise SystemExit(1) from None
+
+# Fail fast with a clear message if the interpreter is not the venv / deps missing.
+try:
+    import flask_sqlalchemy  # noqa: F401
+except ModuleNotFoundError:
+    root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    venv_py = os.path.join(root, ".venv", "bin", "python")
+    print(
+        "\nThis Python does not have PhishGuard dependencies (e.g. Flask-SQLAlchemy).\n"
+        "You are probably using system `python3` instead of the project venv.\n\n"
+        "Option A — activate venv, then run from backend/:\n"
+        f"  cd {root}\n"
+        "  source .venv/bin/activate\n"
+        "  cd backend && python3 run.py\n\n"
+        "Option B — one command from repo root (no activate):\n"
+        f"  {venv_py} backend/run.py\n\n"
+        "If `source .venv/bin/activate` shows (.venv) but imports still fail, the venv\n"
+        "was probably copied/moved from another path. Recreate it:\n"
+        f"  cd {root} && rm -rf .venv && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt\n\n"
+        "If `.venv` does not exist yet:\n"
+        f"  cd {root} && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt\n",
+        file=sys.stderr,
+    )
+    raise SystemExit(1) from None
 
 # Step 1: Load .env into os.environ BEFORE importing create_app.
 # load_dotenv() looks for .env starting in the current directory

@@ -82,6 +82,16 @@ def reports_page():
     return send_from_directory(os.path.join(FRONTEND_DIR, "pages"), "reports.html")
 
 
+@frontend_bp.route("/ml-dashboard")
+def ml_dashboard_page():
+    return send_from_directory(os.path.join(FRONTEND_DIR, "pages"), "ml_dashboard.html")
+
+
+@frontend_bp.route("/status")
+def status_page():
+    return send_from_directory(os.path.join(FRONTEND_DIR, "pages"), "status.html")
+
+
 # ── STATIC ASSETS ─────────────────────────────────────────────
 # Serves frontend/css/*.css and frontend/js/*.js
 # The browser requests these as relative paths like ../css/base.css
@@ -100,6 +110,8 @@ def serve_js(filename):
 @frontend_bp.route("/assets/<path:filename>")
 def serve_assets(filename):
     return send_from_directory(os.path.join(FRONTEND_DIR, "assets"), filename)
+
+
 @frontend_bp.route("/forgot-password")
 def forgot_password_page():
     return send_from_directory(os.path.join(FRONTEND_DIR, "pages"), "forgot-password.html")

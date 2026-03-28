@@ -1,4 +1,18 @@
 :root {
+  /*
+    frontend/css/variables.css
+
+    Design-system concept:
+    CSS custom properties act like shared design tokens.
+    Instead of hardcoding colours and spacing in every rule,
+    we define them once and let the rest of the UI reference
+    them. That makes theming and large redesigns much easier.
+
+    Security-product design note:
+    The dark palette is tuned to communicate focus and signal
+    without relying on neon everywhere. Accent colours are then
+    used sparingly for status, action, and emphasis.
+  */
   --bg:          #0a0c0f;
   --surface:     #111418;
   --surface2:    #181c22;
@@ -21,6 +35,11 @@
   --low:         #00d4ff;
   --font-mono:   'Space Mono', monospace;
   --font-sans:   'Syne', sans-serif;
-  --topbar-h:    56px;
+  --topbar-h:    68px;
   --sidebar-w:   200px;
+  --radius:      12px;
+  --radius-sm:   8px;
+  --shadow-lg:   0 24px 80px rgba(0, 0, 0, 0.24);
+  --content-max: 1320px;
+  --glass:       rgba(17, 20, 24, 0.82);
 }

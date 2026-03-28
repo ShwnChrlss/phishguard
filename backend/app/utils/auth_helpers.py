@@ -55,7 +55,10 @@ from datetime import datetime, timezone
 from functools import wraps
 from typing import Optional, Callable
 
-from flask import request, jsonify, current_app, g
+from flask import request, current_app, g
+
+from app.extensions import db
+from app.utils.responses import error
 
 logger = logging.getLogger(__name__)
 
@@ -225,18 +228,20 @@ def require_auth(f: Callable) -> Callable:
         token = get_token_from_request()
 
         if not token:
-            return jsonify({
-                "error":   "unauthorized",
-                "message": "Authorization header missing or malformed. "
-                           "Include: Authorization: Bearer <token>",
-            }), 401
+            return error(
+                "Authorization header missing or malformed. "
+                "Include: Authorization: Bearer <token>",
+                401,
+                "unauthorized",
+            )
 
         payload = verify_token(token)
         if not payload:
-            return jsonify({
-                "error":   "unauthorized",
-                "message": "Token is invalid or has expired. Please log in again.",
-            }), 401
+            return error(
+                "Token is invalid or has expired. Please log in again.",
+                401,
+                "unauthorized",
+            )
 
         # Store verified identity in Flask's request-scoped g object.
         # Any code running during this request can now access g.user_id.
@@ -279,11 +284,12 @@ def require_role(*roles: str) -> Callable:
             user_role = getattr(g, "role", None)
 
             if user_role not in roles:
-                return jsonify({
-                    "error":   "forbidden",
-                    "message": f"This action requires one of these roles: {list(roles)}. "
-                               f"Your role: {user_role}",
-                }), 403
+                return error(
+                    f"This action requires one of these roles: {list(roles)}. "
+                    f"Your role: {user_role}",
+                    403,
+                    "forbidden",
+                )
 
             return f(*args, **kwargs)
         return wrapper
@@ -308,5 +314,5 @@ def get_current_user():
         return None
 
     from app.models.user import User
-    g.user = User.query.get(user_id)
+    g.user = db.session.get(User, user_id)
     return g.user

@@ -31,6 +31,39 @@ import os
 from datetime import timedelta
 
 
+_APP_DIR = os.path.dirname(os.path.abspath(__file__))
+_BACKEND_DIR = os.path.dirname(_APP_DIR)
+_INSTANCE_DIR = os.path.join(_BACKEND_DIR, "instance")
+os.makedirs(_INSTANCE_DIR, exist_ok=True)
+_DEFAULT_SQLITE_PATH = os.path.join(_INSTANCE_DIR, "phishguard.db")
+
+
+def _normalise_database_url(raw_url: str) -> str:
+    """
+    Resolve DB URLs into a predictable form.
+
+    Key behaviour:
+    - postgres:// → postgresql:// for SQLAlchemy compatibility
+    - sqlite:///name.db → absolute file inside backend/instance/
+    - sqlite:////abs/path.db and sqlite:///:memory: are left alone
+    """
+    if raw_url.startswith("postgres://"):
+        return raw_url.replace("postgres://", "postgresql://", 1)
+
+    if raw_url == "sqlite:///:memory:":
+        return raw_url
+
+    if raw_url.startswith("sqlite:///") and not raw_url.startswith("sqlite:////"):
+        rel_path = raw_url[len("sqlite:///"):]
+        abs_path = os.path.join(_INSTANCE_DIR, rel_path)
+        abs_dir = os.path.dirname(abs_path)
+        if abs_dir:
+            os.makedirs(abs_dir, exist_ok=True)
+        return f"sqlite:///{abs_path}"
+
+    return raw_url
+
+
 class BaseConfig:
     """
     Settings shared by every environment.
@@ -58,17 +91,17 @@ class BaseConfig:
     # ── DATABASE ──────────────────────────────────────────────
     # SQLAlchemy reads this URL to know what database to connect.
     # Format: dialect://user:password@host:port/database_name
-    # SQLite shortcut: sqlite:///filename.db (3 slashes = relative path)
+    # SQLite shortcut: sqlite:///filename.db
+    # We normalise relative SQLite paths into backend/instance/
+    # so every entrypoint (run.py, scripts, pytest, Flask shell)
+    # resolves to the SAME file on disk.
     # DATABASE_URL environment variable takes priority.
     # Docker sets: postgresql://phishguard:pass@db:5432/phishguard_db
     # Local dev falls back to SQLite (no Docker needed for dev).
     # NOTE: SQLAlchemy 1.4+ requires postgresql:// not postgres://
     # Heroku and some tools still output postgres:// — we fix it here.
-    _db_url: str = os.environ.get("DATABASE_URL", "sqlite:///phishguard.db")
-    SQLALCHEMY_DATABASE_URI: str = (
-        _db_url.replace("postgres://", "postgresql://", 1)
-        if _db_url.startswith("postgres://") else _db_url
-    )
+    _db_url: str = os.environ.get("DATABASE_URL", f"sqlite:///{_DEFAULT_SQLITE_PATH}")
+    SQLALCHEMY_DATABASE_URI: str = _normalise_database_url(_db_url)
 
     # SQLAlchemy can fire events on every object modification.
     # We don't need this feature, and it wastes memory. Off.

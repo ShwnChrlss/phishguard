@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PhishGuard AI — Scan History</title>
   <link rel="stylesheet" href="/css/variables.css" />
+  <link rel="stylesheet" href="/css/themes.css" />
+  <script src="/js/core/theme.js"></script>
   <link rel="stylesheet" href="/css/base.css" />
   <link rel="stylesheet" href="/css/layout.css" />
   <link rel="stylesheet" href="/css/components.css" />
@@ -223,9 +225,72 @@
       font-size: .9rem;
     }
     .state-msg .icon { font-size: 2.5rem; margin-bottom: .75rem; }
+
+    .history-page-wrap {
+      padding: 0 1.5rem 2rem;
+    }
+
+    .history-table-card {
+      overflow-x: auto;
+      padding: 0;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    @media (max-width: 768px) {
+      .history-page-wrap {
+        padding: 0 0 1.25rem;
+      }
+
+      .history-header {
+        align-items: flex-start;
+      }
+
+      .history-header .btn {
+        width: 100%;
+      }
+
+      .filter-bar {
+        gap: 0.5rem;
+      }
+
+      .filter-btn {
+        flex: 1 1 calc(50% - 0.5rem);
+        text-align: center;
+      }
+
+      .scan-table {
+        min-width: 760px;
+      }
+
+      .email-preview {
+        max-width: 220px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .filter-btn {
+        flex-basis: 100%;
+      }
+
+      .history-title {
+        font-size: 1.2rem;
+      }
+
+      .modal-box {
+        padding: 1.2rem;
+        width: calc(100% - 1rem);
+      }
+
+      .email-preview {
+        max-width: 170px;
+      }
+    }
   </style>
 </head>
-<body>
+<body data-page="history">
 
 <!-- TOPBAR -->
 <div class="topbar">
@@ -248,41 +313,45 @@
     <div class="nav-label">Main</div>
     <a class="nav-item" data-page="dashboard" href="/dashboard">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-      Dashboard
+      <span class="nav-item-text">Dashboard</span>
     </a>
     <a class="nav-item" data-page="analyzer" href="/detect">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      Detect Email
+      <span class="nav-item-text">Detect Email</span>
     </a>
     <a class="nav-item" data-page="chatbot" href="/chat">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-      Security Chat
+      <span class="nav-item-text">Security Chat</span>
     </a>
     <a class="nav-item active" data-page="history" href="/history">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
-      Scan History
+      <span class="nav-item-text">Scan History</span>
     </a>
   </div>
   <div class="nav-section admin-only hidden">
     <div class="nav-label">Admin</div>
     <a class="nav-item" href="/alerts">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
-      Alerts
+      <span class="nav-item-text">Alerts</span>
     </a>
     <a class="nav-item" href="/quarantine">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-      Quarantine
+      <span class="nav-item-text">Quarantine</span>
     </a>
     <a class="nav-item" href="/users">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-      Users
+      <span class="nav-item-text">Users</span>
     </a>
+    <a class="nav-item" href="/ml-dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27,6.96 12,12.01 20.73,6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>ML Dashboard</a>
+    <a class="nav-item" href="/status" target="_blank">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>System Status</a>
   </div>
 </div>
 
 <!-- MAIN -->
 <div class="main">
-  <div style="padding: 0 1.5rem 2rem;">
+  <div class="history-page-wrap">
 
     <div class="history-header">
       <div>
@@ -291,7 +360,7 @@
           Your personal phishing scan log
         </div>
       </div>
-      <a href="/analyzer" class="btn btn-primary" style="font-size:.85rem;">
+      <a href="/detect" class="btn btn-primary" style="font-size:.85rem;">
         + New Scan
       </a>
     </div>
@@ -306,7 +375,7 @@
     </div>
 
     <!-- Table -->
-    <div class="card" style="overflow-x:auto; padding:0;">
+    <div class="history-table-card">
       <div id="history-loading" class="state-msg">
         <div class="icon">⏳</div>
         Loading scan history…
@@ -330,7 +399,7 @@
 
       <div id="history-empty" class="state-msg" style="display:none;">
         <div class="icon">🔍</div>
-        No scans found. <a href="/analyzer" style="color:var(--accent);">Run your first scan →</a>
+        No scans found. <a href="/detect" style="color:var(--accent);">Run your first scan →</a>
       </div>
     </div>
 
@@ -354,8 +423,10 @@
   </div>
 </div>
 
-<script src="/js/utils.js"></script>
 <script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/utils.js"></script>
+<script src="/js/core/app-shell.js"></script>
 <script>
 
 let _page   = 1;
@@ -363,8 +434,8 @@ let _filter = 'all';
 let _allScans = [];   // current page data
 
 // ── Auth guard ─────────────────────────────────────────────
-const token = localStorage.getItem('pg_token');
-if (!token) window.location.href = '/login';
+if (!Auth.requireAuth()) throw new Error('redirect');
+const token = Auth.getToken();
 
 // ── Helpers ────────────────────────────────────────────────
 function riskClass(score) {
@@ -586,5 +657,6 @@ if (_user) {
 }
 loadHistory();
 </script>
+
 </body>
 </html>

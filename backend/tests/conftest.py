@@ -28,8 +28,15 @@
 
 import pytest
 from app import create_app
+from app.config import TestingConfig
 from app.extensions import db as _db
 from app.models.user import User
+
+
+class PytestConfig(TestingConfig):
+    """Test-specific config loaded before extensions initialise."""
+
+    SECRET_KEY = "test-secret-key-not-for-production"
 
 
 @pytest.fixture(scope="function")
@@ -43,14 +50,7 @@ def app():
       SQLALCHEMY_DATABASE_URI → in-memory SQLite (fast, disposable)
       WTF_CSRF_ENABLED = False → no CSRF tokens needed in tests
     """
-    test_app = create_app()
-    test_app.config.update({
-        "TESTING":                True,
-        "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",  # vanishes after test
-        "WTF_CSRF_ENABLED":       False,
-        "SECRET_KEY":             "test-secret-key-not-for-production",
-        "JWT_SECRET_KEY":         "test-jwt-secret",
-    })
+    test_app = create_app(PytestConfig)
 
     # Create all tables in the in-memory database
     with test_app.app_context():

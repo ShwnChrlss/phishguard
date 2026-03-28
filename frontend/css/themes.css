@@ -1,0 +1,52 @@
+:root[data-theme="light"] {
+  /*
+    frontend/css/themes.css
+
+    Theming concept:
+    The light theme does not redefine every rule in the app.
+    It only overrides the shared tokens from variables.css.
+    This is one of the cleanest ways to support multiple themes:
+    components stay the same, only the design inputs change.
+  */
+  --bg:          #f4f7fb;
+  --surface:     #ffffff;
+  --surface2:    #eef3f8;
+  --border:      #d7e0ea;
+  --border2:     #c9d4df;
+  --text:        #16212f;
+  --text-dim:    #546274;
+  --text-muted:  #7c8a99;
+  --accent:      #0b7ea4;
+  --accent-dark: #086884;
+  --danger:      #cc3550;
+  --danger-dim:  #f9e6ea;
+  --warn:        #c97a00;
+  --warn-dim:    #fff0d9;
+  --safe:        #0b9b6a;
+  --safe-dim:    #def7ee;
+  --critical:    #cc3550;
+  --high:        #d5681e;
+  --medium:      #c97a00;
+  --low:         #0b7ea4;
+  --glass:       rgba(255, 255, 255, 0.86);
+  --shadow-lg:   0 24px 60px rgba(22, 33, 47, 0.08);
+}
+
+:root[data-theme="light"] body::before {
+  background: repeating-linear-gradient(
+    0deg, transparent, transparent 2px,
+    rgba(11, 126, 164, 0.02) 2px, rgba(11, 126, 164, 0.02) 4px
+  );
+}
+
+:root[data-theme="light"] .topbar-logo,
+:root[data-theme="light"] h1,
+:root[data-theme="light"] h2,
+:root[data-theme="light"] h3,
+:root[data-theme="light"] h4 {
+  color: #0f1724;
+}
+
+:root[data-theme="light"] .btn-primary {
+  color: #fff;
+}

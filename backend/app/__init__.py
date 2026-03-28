@@ -41,7 +41,7 @@
 
 import os
 import logging
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify
 from dotenv import load_dotenv
 
 # Load .env BEFORE anything reads os.environ.
@@ -117,6 +117,8 @@ def create_app(config_override=None):
         os.environ.get("FLASK_ENV", "development"),
         app.config.get("SQLALCHEMY_DATABASE_URI", "unknown"),
     )
+    if app.config.get("SQLALCHEMY_DATABASE_URI", "").startswith("sqlite:////"):
+        logger.info("SQLite file resolved to: %s", app.config["SQLALCHEMY_DATABASE_URI"][10:])
 
     # ── 4. INITIALISE EXTENSIONS ──────────────────────────────
     # init_app() "attaches" each extension to this specific app.
@@ -236,7 +238,9 @@ def _register_blueprints(app: Flask) -> None:
         from app.routes.admin  import admin_bp
         from app.routes.reports import reports_bp
         from app.frontend_routes import frontend_bp
-
+        from app.routes.ml_dashboard import ml_dashboard_bp
+        
+        app.register_blueprint(ml_dashboard_bp)
         app.register_blueprint(auth_bp,   url_prefix="/api/auth")
         app.register_blueprint(detect_bp, url_prefix="/api")
         app.register_blueprint(chat_bp,   url_prefix="/api/chat")
@@ -250,44 +254,6 @@ def _register_blueprints(app: Flask) -> None:
     except ImportError as e:
         app.logger.error("Blueprint import failed: %s", e)
         raise
-
-
-'''
-def _register_blueprints(app: Flask) -> None:
-    """
-    Imports and registers every route Blueprint onto the app.
-
-    We use try/except ImportError so that:
-    - Phase 1 runs fine even though route files are empty.
-    - You get a clear warning (not a crash) about what's missing.
-    - As you fill routes in Phase 4, they silently start working.
-    """
-    blueprint_registry = [
-        # (module_path, blueprint_name, url_prefix)
-        ("app.routes.auth",    "auth_bp",    "/api/auth"),
-        ("app.routes.detect",  "detect_bp",  "/api"),
-        ("app.routes.chat",    "chat_bp",    "/api/chat"),
-        ("app.routes.admin",   "admin_bp",   "/api/admin"),
-        ("app.routes.reports", "reports_bp", "/api/reports"),
-    ]
-
-    for module_path, bp_name, prefix in blueprint_registry:
-        try:
-            # __import__ with fromlist is how you dynamically
-            # import a specific attribute from a module string.
-            module = __import__(module_path, fromlist=[bp_name])
-            blueprint = getattr(module, bp_name)
-            app.register_blueprint(blueprint, url_prefix=prefix)
-            app.logger.debug("Registered blueprint: %s → %s", bp_name, prefix)
-        except (ImportError, AttributeError):
-            # Route file exists but is empty (Phase 1 state).
-            # Will auto-register when you fill the file in Phase 4.
-            app.logger.warning(
-                "Blueprint '%s' not ready yet — fill %s in Phase 4",
-                bp_name,
-                module_path.replace(".", "/") + ".py",
-            )
-'''
 
 def _register_error_handlers(app: Flask) -> None:
     """
@@ -352,17 +318,3 @@ def _register_error_handlers(app: Flask) -> None:
             "error": "internal_server_error",
             "message": "An unexpected error occurred. Please try again.",
         }), 500
-    
-
-    @app.route("/dashboard")
-    def dashboard():
-     frontend_dir = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        "..", "frontend"
-    )
-     return send_from_directory(os.path.abspath(frontend_dir), "dashboard.html")
-    
-''''
-Then restart the server and open:
-http://localhost:5000/dashboard
-'''

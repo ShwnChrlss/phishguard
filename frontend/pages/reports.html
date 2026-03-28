@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <title>PhishGuard — Reports</title>
   <link rel="stylesheet" href="/css/variables.css" />
+  <link rel="stylesheet" href="/css/themes.css" />
+  <script src="/js/core/theme.js"></script>
   <link rel="stylesheet" href="/css/base.css" />
   <link rel="stylesheet" href="/css/components.css" />
   <link rel="stylesheet" href="/css/layout.css" />
@@ -11,7 +13,7 @@
   <link rel="stylesheet" href="/css/pages.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
-<body>
+<body data-page="reports">
 <div class="topbar">
   <a class="topbar-logo" href="/dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V7L12 2z"/><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>Phish<span>Guard</span></a>
   <div class="topbar-right">
@@ -22,16 +24,20 @@
 <div class="sidebar">
   <div class="nav-section">
     <div class="nav-label">Main</div>
-    <a class="nav-item" href="/dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Dashboard</a>
-    <a class="nav-item" href="/detect"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Detect Email</a>
-    <a class="nav-item" href="/chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Security Chat</a>
+    <a class="nav-item" href="/dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span class="nav-item-text">Dashboard</span></a>
+    <a class="nav-item" href="/detect"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><span class="nav-item-text">Detect Email</span></a>
+    <a class="nav-item" href="/chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><span class="nav-item-text">Security Chat</span></a>
   </div>
   <div class="nav-section">
     <div class="nav-label">Admin</div>
-    <a class="nav-item" href="/alerts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>Alerts</a>
-    <a class="nav-item" href="/quarantine"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>Quarantine</a>
-    <a class="nav-item" href="/users"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Users</a>
-    <a class="nav-item active" href="/reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>Reports</a>
+    <a class="nav-item" href="/alerts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg><span class="nav-item-text">Alerts</span></a>
+    <a class="nav-item" href="/quarantine"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg><span class="nav-item-text">Quarantine</span></a>
+    <a class="nav-item" href="/users"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span class="nav-item-text">Users</span></a>
+    <a class="nav-item active" href="/reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg><span class="nav-item-text">Reports</span></a>
+    <a class="nav-item" href="/ml-dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27,6.96 12,12.01 20.73,6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><span class="nav-item-text">ML Dashboard</span></a>
+    <a class="nav-item" href="/status" target="_blank">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg><span class="nav-item-text">System Status</span></a>
   </div>
 </div>
 <div class="main">
@@ -72,6 +78,7 @@
 <script src="/js/api.js"></script>
 <script src="/js/auth.js"></script>
 <script src="/js/utils.js"></script>
+<script src="/js/core/app-shell.js"></script>
 <script src="/js/charts.js"></script>
 <script>
   if (!Auth.requireAnalyst()) throw new Error('redirect');
@@ -108,5 +115,6 @@
 
   loadReport();
 </script>
+
 </body>
 </html>

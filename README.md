@@ -8,6 +8,7 @@
 ## Table of Contents
 
 - [Overview](#overview)
+- [Learning Guide](#learning-guide)
 - [How AI is Used](#how-ai-is-used)
 - [Architecture](#architecture)
 - [Current Features](#current-features)
@@ -30,6 +31,33 @@ The platform combines three layers of analysis:
 3. **Rule-based Heuristics** — lookalike domain detection, suspicious TLD matching, urgency language patterns, and more
 
 Every scan produces a risk score (0–100%), a phishing/clean label, a human-readable explanation, and optionally triggers a security alert for admin review.
+
+## Learning Guide
+
+This project is intentionally written as a teaching codebase, not just a demo app. Many of the source files now include comments that connect implementation choices to software engineering and cybersecurity theory.
+
+Recommended reading order:
+
+1. `README.md`
+2. `docs/00_overview.md`
+3. `docs/01_setup.md`
+4. `docs/02_architecture.md`
+5. `backend/app/__init__.py`
+6. `backend/app/config.py`
+7. `backend/app/routes/auth.py`
+8. `backend/app/routes/detect.py`
+9. `backend/app/services/detector.py`
+10. `frontend/js/core/app-shell.js`
+
+Companion docs in `docs/`:
+
+- `00_overview.md` — what the project does and what it teaches
+- `01_setup.md` — environment setup and common pitfalls
+- `02_architecture.md` — layers, tradeoffs, and request flow
+- `03_api_reference.md` — main endpoints and contracts
+- `03_frontend_ui.md` — where to customize the UI system
+- `04_ml_model.md` — model pipeline and ML theory notes
+- `05_improvement_guide.md` — safe directions for future improvement
 
 ---
 
@@ -140,6 +168,15 @@ phishguard/
 | Rate limiting | Flask-Limiter (sliding window) |
 | Database | SQLite (dev) / PostgreSQL (prod) |
 | Frontend | Vanilla HTML/CSS/JS |
+
+Engineering ideas used throughout the codebase:
+
+- App factory pattern for clean environment switching and testability
+- Service layer to separate HTTP concerns from domain logic
+- ORM models to express persistence as Python objects
+- Least privilege for role-based access control
+- Defence in depth through ML, heuristics, and threat-intelligence enrichment
+- Responsive design tokens so visual changes can be made centrally
 
 ---
 

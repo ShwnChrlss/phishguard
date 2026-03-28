@@ -1,0 +1,5 @@
+# PhishGuard — install from repository root:
+#   pip install -r requirements.txt
+#
+# Actual pins live in backend/requirements.txt (single source of truth).
+-r backend/requirements.txt

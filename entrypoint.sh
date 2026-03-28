@@ -38,14 +38,14 @@ echo "🚀 Starting Gunicorn..."
 # Gunicorn flags:
 #   --workers 4        : 4 parallel worker processes
 #   --threads 2        : 2 threads per worker (handles I/O wait)
-#   --bind 0.0.0.0:5000: listen on all interfaces inside container
+#   --bind 0.0.0.0:${PORT:-5000}: listen on all interfaces inside container
 #   --access-logfile - : send access logs to stdout (docker logs)
 #   --error-logfile -  : send error logs to stdout
 #   run:app            : the 'app' object inside run.py
 exec gunicorn \
   --workers 4 \
   --threads 2 \
-  --bind 0.0.0.0:5000 \
+  --bind 0.0.0.0:${PORT:-5000} \
   --access-logfile - \
   --error-logfile - \
   --log-level info \
