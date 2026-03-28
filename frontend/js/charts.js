@@ -6,11 +6,19 @@
    Chart.js is a library that draws charts on HTML <canvas>.
    A canvas is a low-level drawing surface — Chart.js handles
    all the maths and rendering for you.
+
+   Data-visualisation concept:
+   Good dashboard charts compress patterns, not just numbers.
+   Doughnuts show composition, bars show comparison over time,
+   and horizontal bars are useful when labels are long.
    ============================================================= */
 
 const Charts = {
 
   // Store chart instances so we can destroy before redrawing
+  // Lifecycle concept:
+  // many charting libraries attach listeners and canvas state.
+  // Destroying old instances prevents memory leaks and double-render bugs.
   _instances: {},
 
   // Destroy an existing chart before redrawing (prevents duplicates)

@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <title>PhishGuard — Users</title>
   <link rel="stylesheet" href="/css/variables.css" />
+  <link rel="stylesheet" href="/css/themes.css" />
+  <script src="/js/core/theme.js"></script>
   <link rel="stylesheet" href="/css/base.css" />
   <link rel="stylesheet" href="/css/components.css" />
   <link rel="stylesheet" href="/css/layout.css" />
@@ -81,9 +83,27 @@
     .perm-table td:first-child { text-align:left; color: var(--text); }
     .perm-yes { color: var(--safe); }
     .perm-no  { color: var(--text-muted); }
+
+    @media (max-width: 720px) {
+      .modal {
+        padding: 1.25rem;
+      }
+
+      .modal-footer {
+        flex-direction: column;
+      }
+
+      .modal-footer > * {
+        width: 100%;
+      }
+
+      .perm-table {
+        min-width: 620px;
+      }
+    }
   </style>
 </head>
-<body>
+<body data-page="admin_users">
 
 <!-- ── TOPBAR ──────────────────────────────────────────────── -->
 <div class="topbar">
@@ -116,9 +136,13 @@
     <a class="nav-item active" href="/users"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Users</a>
     <a class="nav-item" data-page="history" href="/history">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
-      Scan History
+      <span class="nav-item-text">Scan History</span>
     </a>
     <a class="nav-item" href="/reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>Reports</a>
+    <a class="nav-item" href="/ml-dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27,6.96 12,12.01 20.73,6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>ML Dashboard</a>
+    <a class="nav-item" href="/status" target="_blank">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>System Status</a>
   </div>
 </div>
 
@@ -263,6 +287,7 @@
 <script src="/js/api.js"></script>
 <script src="/js/auth.js"></script>
 <script src="/js/utils.js"></script>
+<script src="/js/core/app-shell.js"></script>
 <script>
   // Guard: admin only
   if (!Auth.requireAdmin()) throw new Error('redirect');
@@ -282,11 +307,6 @@
     if (role)     url += `&role=${role}`;
     if (isActive) url += `&is_active=${isActive}`;
 
-    const res = await API.getUsers ? API.getUsers() : fetch(`/api${url}`, {
-      headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
-    }).then(r => r.json());
-
-    // Direct fetch for filtered URL
     const data = await fetch(`/api${url}`, {
       headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
     }).then(r => r.json());
@@ -461,7 +481,7 @@
                              department: dept || undefined }),
     }).then(r => r.json());
 
-    if (res.status === 'success' || res.status === 'created') {
+    if (res.status === 'success') {
       Utils.toast(`User '${username}' created as ${role}.`);
       closeCreateModal();
       loadUsers();
@@ -481,5 +501,6 @@
   // Load on page start
   loadUsers();
 </script>
+
 </body>
 </html>

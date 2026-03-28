@@ -7,13 +7,19 @@
 html { scroll-behavior: smooth; }
 
 body {
-  background: var(--bg);
+  background:
+    radial-gradient(circle at top center, color-mix(in srgb, var(--accent) 10%, transparent) 0%, transparent 34%),
+    radial-gradient(circle at 18% 20%, color-mix(in srgb, var(--safe) 6%, transparent) 0%, transparent 24%),
+    var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.6;
   min-height: 100vh;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 /* Subtle scanline texture */
@@ -37,6 +43,25 @@ h1,h2,h3,h4 {
 
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
+
+img,
+svg,
+canvas,
+video {
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+code,
+pre {
+  overflow-wrap: anywhere;
+}
 
 hr {
   border: none;
@@ -107,3 +132,9 @@ label {
 .mb-2              { margin-bottom: 1rem; }
 .truncate          { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hidden            { display: none !important; }
+
+@media (max-width: 640px) {
+  body {
+    font-size: 13px;
+  }
+}

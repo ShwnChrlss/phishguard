@@ -100,6 +100,7 @@ def seed():
     with app.app_context():
         print("\n🛡️  PhishGuard — Database Seeder")
         print("=" * 50)
+        print(f"DB URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
 
         # ── USERS ─────────────────────────────────────────────
         print("\n👤 Seeding users...")

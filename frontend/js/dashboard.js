@@ -1,5 +1,11 @@
 /* =============================================================
    frontend/js/dashboard.js — Dashboard page logic
+
+   UX architecture concept:
+   This page supports two personas with one screen:
+   - admin/analyst users get operational metrics
+   - regular users get a personal activity view
+   That is a lightweight example of role-based UI composition.
    ============================================================= */
 
 async function initDashboard() {
@@ -8,16 +14,40 @@ async function initDashboard() {
   await loadDashboard();
 }
 
+function setDashboardMode(mode) {
+  const badge = Utils.el('alert-count');
+
+  if (mode === 'personal') {
+    // Least privilege in the UI:
+    // regular users still get value from the page without seeing
+    // controls that imply access to operations data they do not have.
+    Utils.el('model-status').textContent       = 'PERSONAL VIEW';
+    Utils.el('stat-queue-label').textContent   = 'Review Queue';
+    Utils.el('stat-queue-sub').textContent     = 'Analyst/Admin only';
+    Utils.el('recent-alerts-title').textContent = 'Security Feed';
+    if (badge) badge.classList.add('hidden');
+    return;
+  }
+
+  Utils.el('model-status').textContent        = 'MODEL ONLINE';
+  Utils.el('stat-queue-label').textContent    = 'Pending Alerts';
+  Utils.el('recent-alerts-title').textContent = 'Active Alerts';
+}
+
 async function loadDashboard() {
   Utils.el('dash-time').textContent = 'Updated: ' + new Date().toLocaleTimeString();
 
   const { ok, data } = await API.getDashboard();
 
   if (!ok) {
-    // Non-admin: fall back to personal stats
+    // Progressive enhancement:
+    // try the richer admin endpoint first, then gracefully fall
+    // back to a personal view rather than failing the whole page.
     await loadPersonalDashboard();
     return;
   }
+
+  setDashboardMode('admin');
 
   const s = data.data.stats;
   Utils.el('stat-total').textContent    = s.total_scans;
@@ -25,15 +55,16 @@ async function loadDashboard() {
   Utils.el('stat-safe').textContent     = s.total_safe;
   Utils.el('stat-alerts').textContent   = s.pending_alerts;
   Utils.el('stat-rate').textContent     = s.detection_rate + '% detection rate';
-  Utils.el('stat-critical').textContent = s.critical_alerts + ' critical';
-  Utils.el('model-status').textContent  = 'MODEL ONLINE';
+  Utils.el('stat-queue-sub').textContent = s.critical_alerts + ' critical';
 
   // Alert badge
-  if (s.pending_alerts > 0) {
-    const badge = Utils.el('alert-count');
-    if (badge) {
+  const badge = Utils.el('alert-count');
+  if (badge) {
+    if (s.pending_alerts > 0) {
       badge.textContent = s.pending_alerts;
       badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
     }
   }
 
@@ -47,6 +78,8 @@ async function loadDashboard() {
 }
 
 async function loadPersonalDashboard() {
+  setDashboardMode('personal');
+
   const { ok, data } = await API.getScanHistory(1, 10);
   if (!ok) return;
 
@@ -57,7 +90,10 @@ async function loadPersonalDashboard() {
   Utils.el('stat-total').textContent    = total;
   Utils.el('stat-phishing').textContent = phishing;
   Utils.el('stat-safe').textContent     = total - phishing;
-  Utils.el('stat-alerts').textContent   = '—';
+  Utils.el('stat-alerts').textContent   = 'Locked';
+  Utils.el('stat-rate').textContent     = total > 0
+    ? Math.round((phishing / total) * 100) + '% flagged in your recent scans'
+    : 'No scans yet';
 
   if (phishing + (total - phishing) > 0) {
     Charts.donut('chart-donut', phishing, total - phishing);
@@ -65,7 +101,12 @@ async function loadPersonalDashboard() {
 
   renderRecentScans(scans);
   const alertsEl = Utils.el('recent-alerts');
-  if (alertsEl) alertsEl.innerHTML = '<div class="empty">Admin access required</div>';
+  if (alertsEl) {
+    alertsEl.innerHTML = `
+      <div class="empty">
+        Team alerts, quarantine review, and reports are available to analyst/admin accounts.
+      </div>`;
+  }
 }
 
 function renderRecentScans(scans) {

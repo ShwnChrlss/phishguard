@@ -1,5 +1,11 @@
 /* =============================================================
    frontend/js/analyzer.js — Email analysis page logic
+
+   Security workflow concept:
+   The analyzer page is a thin orchestration layer.
+   It gathers user input, calls the backend, and renders the
+   result. The actual detection logic stays on the server so
+   users cannot tamper with the scoring rules in the browser.
    ============================================================= */
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -18,6 +24,9 @@ async function doDetect() {
   if (!body) { Utils.toast('Email body is required.', true); return; }
 
   const btn = Utils.el('detect-btn');
+  // UX concept: optimistic feedback
+  // Disabling the button and showing progress helps prevent
+  // duplicate submissions and communicates that work is happening.
   btn.disabled = true;
   btn.innerHTML = '<div class="spinner"></div> Analysing...';
 
@@ -67,6 +76,9 @@ function renderResult(r) {
   Utils.el('result-id').textContent     = '#' + r.scan_id;
 
   // Explanations
+  // Explainability concept:
+  // security tools need to justify their verdicts so users can
+  // learn from them and analysts can review them critically.
   const exEl = Utils.el('result-explanations');
   if (r.explanation && r.explanation.length) {
     exEl.innerHTML = r.explanation.map(e => {
@@ -159,7 +171,7 @@ let _selectedFile = null;
 function setFile(file) {
   // Client-side validation — first line of defence
   const ext = file.name.split('.').pop().toLowerCase();
-  if (ext !== 'eml' && ext !== 'msg') {
+  if (ext !== 'eml') {
     Utils.toast('Invalid file type. Only .eml files are accepted.', true);
     return;
   }
@@ -236,8 +248,6 @@ async function doUpload() {
       // can show sender/subject from the parsed file
       const result = {
         ...data.data,
-        // Map parsed_email fields to what renderResult expects
-        status:        data.data.is_phishing ? 'quarantined' : 'safe',
       };
       renderResult(result);
     } else {

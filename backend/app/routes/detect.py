@@ -242,7 +242,7 @@ import os
 from werkzeug.utils import secure_filename
 from app.services.email_parser import parse_eml
 
-ALLOWED_EXTENSIONS = {'.eml', '.msg'}
+ALLOWED_EXTENSIONS = {'.eml'}
 MAX_FILE_SIZE_MB   = 5
 
 @detect_bp.route('/detect/upload', methods=['POST'])
@@ -304,18 +304,15 @@ def upload_eml():
     current_user = get_current_user()
     user_id      = current_user.id if current_user else None
 
-    scan = EmailScan(
-        user_id          = user_id,
-        email_body       = parsed['body'],
-        email_subject    = parsed['subject'],
-        email_sender     = parsed['sender'],
-        is_phishing      = result['is_phishing'],
-        risk_score       = result['risk_score'],
-        confidence       = result.get('confidence', 0.0),
-        source           = 'eml_upload',
-        status           = 'quarantined' if result['is_phishing'] else 'safe',
-        explanation_json = str(result.get('explanation', [])),
+    scan = EmailScan.create_from_result(
+        email_body    = parsed['body'],
+        result        = result,
+        user_id       = user_id,
+        email_subject = parsed['subject'],
+        email_sender  = parsed['sender'],
+        source        = 'eml_upload',
     )
+    scan.status = 'quarantined' if result.get('is_phishing') else 'safe'
     db.session.add(scan)
     db.session.flush()
 
@@ -340,6 +337,7 @@ def upload_eml():
         'confidence':    result.get('confidence', 0.0),
         'explanation':   result.get('explanation', []),
         'alert_created': alert_created,
+        'status':        scan.status,
         'parsed_email':  {
             'subject':          parsed['subject'],
             'sender':           parsed['sender'],

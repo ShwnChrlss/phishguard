@@ -1,8 +1,15 @@
 /* =============================================================
    frontend/js/admin.js — Admin pages: alerts, scans, users
+
+   Operations concept:
+   Admin pages are read-heavy incident-response views. The main
+   frontend job here is to turn raw API records into scannable
+   operational tables with status, severity, and timing cues.
    ============================================================= */
 
 // ── ALERTS ────────────────────────────────────────────────────
+// These actions mirror a simple incident lifecycle:
+// pending -> acknowledged -> resolved
 async function loadAlerts() {
   Utils.showLoading('alerts-tbody', 8);
   const { ok, data } = await API.getAlerts();
@@ -71,6 +78,9 @@ async function loadAdminScans() {
 }
 
 // ── USERS ─────────────────────────────────────────────────────
+// User management is intentionally display-first here. The app
+// avoids inline mutation controls in the listing until the data
+// model and permissions are stable.
 async function loadUsers() {
   Utils.showLoading('users-tbody', 7);
   const { ok, data } = await API.getUsers();

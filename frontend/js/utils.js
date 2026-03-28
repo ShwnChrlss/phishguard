@@ -1,6 +1,11 @@
 /* =============================================================
    frontend/js/utils.js
    Toast, formatting, DOM helpers — used by every page.
+
+   Engineering concept:
+   Small utility layers help avoid duplication, but they should
+   stay boring and predictable. This file is deliberately kept
+   framework-free so learners can see the underlying DOM work.
    ============================================================= */
 
 const Utils = {
@@ -55,6 +60,9 @@ const Utils = {
   },
 
   // ── HTML COMPONENT BUILDERS ───────────────────────────────
+  // These return HTML strings for repeated UI fragments.
+  // Reuse matters here for consistency: the same risk score
+  // should look the same on dashboard, reports, and admin pages.
   riskBadge(isPhishing) {
     return isPhishing
       ? '<span class="risk-badge phishing">🚨 Phishing</span>'
@@ -109,23 +117,85 @@ const Utils = {
   },
 
   // ── TOPBAR SETUP ──────────────────────────────────────────
-  // Call on every protected page to populate the topbar
+  // Call on every protected page to populate the topbar.
+  // In a component framework this would likely live in a shared
+  // layout component; in vanilla JS we do the same job manually.
   setupTopbar() {
     const user = Auth.getUser();
     if (!user) return;
     const nameEl = document.getElementById('topbar-username');
     if (nameEl) nameEl.textContent = user.username;
 
-    // Show admin nav items
-    if (Auth.isAnalyst()) {
-      document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+    const roleEl = document.getElementById('topbar-role');
+    if (roleEl) roleEl.textContent = (user.role || 'user').toUpperCase();
+
+    this.applyRoleVisibility();
+  },
+
+  // ── NAV VISIBILITY ───────────────────────────────────────
+  // Normal users should only see general navigation plus
+  // their own scan history. Analyst/admin users can see
+  // operational pages, and only admins can manage users.
+  applyRoleVisibility() {
+    if (window.AppShell && document.querySelector('[data-shell-nav="primary"]')) {
+      return;
     }
+
+    const isLoggedIn = Auth.isLoggedIn();
+    const isAnalyst  = Auth.isAnalyst();
+    const isAdmin    = Auth.isAdmin();
+
+    const analystOnly = new Set([
+      '/alerts',
+      '/quarantine',
+      '/reports',
+      '/ml-dashboard',
+      '/status',
+    ]);
+    const adminOnly = new Set(['/users']);
+    const allUsers = new Set(['/history']);
+
+    document.querySelectorAll('.nav-item').forEach((el) => {
+      const href = (el.getAttribute('href') || '').split('?')[0];
+      let visible = true;
+
+      if (adminOnly.has(href)) {
+        visible = isAdmin;
+      } else if (analystOnly.has(href)) {
+        visible = isAnalyst;
+      } else if (allUsers.has(href)) {
+        visible = isLoggedIn;
+      }
+
+      el.style.display = visible ? '' : 'none';
+      el.classList.toggle('hidden', !visible);
+    });
+
+    document.querySelectorAll('.nav-section').forEach((section) => {
+      const items = Array.from(section.querySelectorAll('.nav-item'));
+      const hasVisibleItem = items.some((item) => item.style.display !== 'none');
+      const label = section.querySelector('.nav-label');
+
+      if (label) {
+        if (!label.dataset.originalLabel) {
+          label.dataset.originalLabel = label.textContent;
+        }
+        if (section.classList.contains('admin-only') && !isAnalyst) {
+          label.textContent = 'Activity';
+        } else {
+          label.textContent = label.dataset.originalLabel;
+        }
+      }
+
+      section.style.display = hasVisibleItem ? '' : 'none';
+      section.classList.toggle('hidden', !hasVisibleItem);
+    });
   },
 
   // ── ACTIVE NAV ITEM ───────────────────────────────────────
   // Highlights the current page's nav link
   setActiveNav(pageId) {
-    document.querySelectorAll('.nav-item').forEach(el => {
+    document.querySelectorAll('.nav-item, .app-nav-link, .app-dropdown-link, .app-mobile-link, .app-dropdown-toggle').forEach(el => {
       el.classList.toggle('active', el.dataset.page === pageId);
     });
   },
@@ -134,6 +204,10 @@ const Utils = {
 // ── Timestamp formatting ──────────────────────────────────────
 // All backend timestamps are stored in UTC.
 // This converts them to the user's local timezone automatically.
+// Timezone concept:
+// Storing UTC in the database prevents "whose local time was
+// this?" bugs. Localising only at the display layer is a common
+// production practice for distributed systems.
 // new Date("2026-03-05T08:00:00") → "3/5/2026, 11:00:00 AM" (EAT)
 //
 // Usage: Utils.formatTime(scan.scanned_at)

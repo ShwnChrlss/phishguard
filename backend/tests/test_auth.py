@@ -23,7 +23,7 @@ class TestRegister:
     """Tests for POST /api/auth/register"""
 
     def test_register_new_user_returns_token(self, client):
-        """Happy path: valid data → 200, token in response."""
+        """Happy path: valid data → 201 Created, token in response."""
         res = client.post("/api/auth/register", json={
             "username": "newuser",
             "email":    "new@test.com",
@@ -31,7 +31,7 @@ class TestRegister:
         })
         data = res.get_json()
 
-        assert res.status_code == 200
+        assert res.status_code == 201
         assert data["status"] == "success"
         assert "token" in data["data"]
         assert data["data"]["user"]["username"] == "newuser"

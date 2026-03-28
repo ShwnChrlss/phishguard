@@ -11,6 +11,13 @@
      const data = await API.login("admin", "pass123")
      const data = await API.detect("URGENT: click now...")
      const data = await API.getDashboard()
+
+   Software engineering concept:
+   This file is a tiny "client SDK" for your own backend.
+   The UI should ask for business actions such as login(),
+   detect(), or getAlerts() instead of hand-building HTTP
+   requests everywhere. That keeps the browser code cohesive
+   and makes API changes cheaper.
    ============================================================= */
 
 // Dynamically use whatever host the page was loaded from.
@@ -44,6 +51,8 @@ async function http(method, path, body = null) {
 }
 
 // ── AUTH ENDPOINTS ───────────────────────────────────────────
+// The object below is intentionally "verb based".
+// Each method expresses an application action, not just a URL.
 const API = {
 
   login(username, password) {
@@ -125,8 +134,8 @@ const API = {
 // ── USER MANAGEMENT ───────────────────────────────────────────
 // These are called from admin_users.html
 
-const updateUser       = (id, data)  => http(`/admin/users/${id}`, "PATCH",  data);
-const deactivateUser   = (id)        => http(`/admin/users/${id}/deactivate`, "POST");
-const reactivateUser   = (id)        => http(`/admin/users/${id}/reactivate`, "POST");
-const deleteUser       = (id)        => http(`/admin/users/${id}`, "DELETE");
-const adminCreateUser  = (data)      => http(`/admin/users`, "POST", data);
+const updateUser       = (id, data)  => http("PATCH", `/admin/users/${id}`, data);
+const deactivateUser   = (id)        => http("POST", `/admin/users/${id}/deactivate`);
+const reactivateUser   = (id)        => http("POST", `/admin/users/${id}/reactivate`);
+const deleteUser       = (id)        => http("DELETE", `/admin/users/${id}`);
+const adminCreateUser  = (data)      => http("POST", "/admin/users", data);
