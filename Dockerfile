@@ -43,7 +43,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # SECURITY: Don't run as root
 # Create the runtime user before copying app code so we can assign
 # ownership during COPY instead of doing a slow recursive chown later.
-RUN useradd -m -u 1000 phishguard
+RUN useradd -m -u 1000 phishguard && \
+    mkdir -p /app/instance /app/frontend && \
+    chown -R phishguard:phishguard /app/instance /app/frontend
 
 # APPLICATION CODE
 # Copy the backend application into the container.
