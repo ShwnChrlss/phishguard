@@ -1,466 +1,461 @@
-# PhishGuard AI — Project Catch-Up Prompt
+# PhishGuard AI - Refreshed Project Catch-Up Prompt
 
 Use this document to bring any AI assistant or collaborator up to speed on the
-PhishGuard AI project. It covers what has been built, the current state, what
-is broken, what is next, and the conventions the project follows.
+PhishGuard project. It captures three things in one place:
+
+1. What the product was originally meant to be
+2. What the repository actually is right now
+3. What direction development should continue next
+
+This version is grounded in the current codebase in
+`/home/shwn/Desktop/Active_projects/phishguard` as inspected on March 29, 2026.
 
 ---
 
-## What PhishGuard Is
+## What PhishGuard Is Trying To Become
 
-PhishGuard AI is a full-stack cybersecurity web application that detects
-phishing emails using machine learning. It is being built as a production-grade
-SaaS product targeting the Kenyan and East African market, with eventual
-positioning toward enterprise clients and ICTA Kenya compliance requirements.
+PhishGuard AI is a learning-focused cybersecurity web application that detects
+phishing emails and helps users understand why something looks suspicious.
 
-The developer is a self-taught beginner-to-intermediate programmer learning
-through building. All explanations should follow Bloom's taxonomy — starting
-from understanding concepts before implementing them, with real-world context
-and enterprise application in mind.
+The long-term product ambition is still strong:
+
+- A production-grade phishing defense SaaS
+- Initially relevant to Kenya and East Africa
+- Eventually suitable for team and enterprise use
+- A codebase that teaches secure engineering while the product is being built
+
+The developer is learning through building, so explanations should remain
+patient, practical, and educational. Start from understanding, then move to
+implementation.
 
 ---
 
-## Tech Stack
+## How To Help On This Project
 
-| Layer | Technology |
+When assisting on PhishGuard:
+
+- Prefer the actual code over older docs when they disagree
+- Explain changes in plain language before or alongside implementation
+- Keep security, maintainability, and learning value visible
+- Treat this as a real app, not only a tutorial project
+- Build from the current repo state, not from assumptions in older prompts
+
+---
+
+## Verified Current Tech Stack
+
+| Layer | Current Reality |
 |---|---|
-| Backend | Python 3.12, Flask, Gunicorn |
-| Database | PostgreSQL (local Docker / Supabase in production) |
-| Cache / Rate limiting | Redis (local Docker / Upstash in production) |
-| ML Engine | scikit-learn Random Forest, TF-IDF vectorizer, joblib |
-| Frontend | Vanilla HTML, CSS, JavaScript (no framework) |
-| Auth | JWT tokens, bcrypt password hashing |
-| Email | Mailtrap (dev) / Resend (production) |
-| Containerisation | Docker, docker-compose, nginx reverse proxy |
-| Cloud hosting | Railway (backend), Cloudflare Pages (frontend), Supabase (DB), Upstash (Redis) |
-| Version control | Git / GitHub (repo: ShwnChrls/phishguard) |
+| Backend | Python, Flask app factory, Gunicorn in container entrypoint |
+| ORM / DB | SQLAlchemy + Flask-Migrate |
+| Local DB default | SQLite in `backend/instance/phishguard.db` |
+| Container / production DB path | PostgreSQL via `DATABASE_URL` |
+| Cache / rate limiting | Flask-Limiter, Redis when configured, memory fallback otherwise |
+| ML | scikit-learn model pipeline with TF-IDF + engineered features |
+| Frontend | Vanilla HTML, CSS, and JavaScript |
+| Auth | JWT bearer tokens + bcrypt password hashing |
+| Email | Flask-Mail with Mailtrap-style dev defaults, production SMTP via env vars |
+| Threat intel | VirusTotal integration when `VIRUSTOTAL_API_KEY` is present |
+| Infra | Docker, docker-compose, nginx reverse proxy |
+| Testing | Pytest-based backend tests exist in `backend/tests/` |
+
+Important nuance:
+
+- Local Python runs default to SQLite now
+- Docker Compose uses PostgreSQL + Redis + nginx
+- The frontend is currently served by Flask routes and by nginx in Docker
 
 ---
 
-## Project File Structure
+## Project Shape Right Now
 
-```
+```text
 phishguard/
 ├── backend/
 │   ├── app/
-│   │   ├── __init__.py          # Flask app factory (create_app)
-│   │   ├── extensions.py        # db, migrate, cors, limiter, mail
-│   │   ├── models/              # SQLAlchemy models
+│   │   ├── __init__.py
+│   │   ├── config.py
+│   │   ├── extensions.py
+│   │   ├── frontend_routes.py
+│   │   ├── models/
 │   │   │   ├── user.py
 │   │   │   ├── email_scan.py
-│   │   │   └── alert.py
+│   │   │   ├── alert.py
+│   │   │   └── training_record.py
 │   │   ├── routes/
-│   │   │   ├── auth.py          # /api/auth/*
-│   │   │   ├── detect.py        # /api/detect, /api/scans/history
-│   │   │   ├── chat.py          # /api/chat/*
-│   │   │   ├── admin.py         # /api/admin/*
-│   │   │   ├── reports.py       # /api/reports/*
-│   │   │   └── ml_dashboard.py  # /api/ml/*, /api/health/status
+│   │   │   ├── auth.py
+│   │   │   ├── detect.py
+│   │   │   ├── chat.py
+│   │   │   ├── admin.py
+│   │   │   ├── reports.py
+│   │   │   └── ml_dashboard.py
 │   │   ├── services/
-│   │   │   ├── detector.py      # PhishingDetectorService
-│   │   │   └── email_parser.py  # .eml file parser
-│   │   ├── utils/
-│   │   │   ├── auth_helpers.py  # require_auth, get_current_user
-│   │   │   └── responses.py     # success(), error(), created()
-│   │   └── frontend_routes.py   # serves HTML pages via Flask
+│   │   │   ├── detector.py
+│   │   │   ├── email_parser.py
+│   │   │   ├── virustotal.py
+│   │   │   ├── password_reset.py
+│   │   │   ├── mailer.py
+│   │   │   ├── chatbot.py
+│   │   │   ├── notifications.py
+│   │   │   └── email_integration.py
+│   │   └── utils/
 │   ├── ml/
-│   │   ├── trainer.py           # PhishingModelTrainer class
-│   │   ├── feature_extractor.py # 35-feature engineering pipeline
+│   │   ├── trainer.py
+│   │   ├── evaluator.py
+│   │   ├── features.py
+│   │   ├── datasets/
 │   │   ├── saved_models/
-│   │   │   ├── model.pkl        # trained Random Forest (GITIGNORED)
-│   │   │   ├── vectorizer.pkl   # TF-IDF vectorizer (GITIGNORED)
-│   │   │   └── metadata.json    # model metrics (COMMITTED)
-│   │   ├── datasets/            # training data (GITIGNORED)
+│   │   │   ├── metadata.json
+│   │   │   ├── model.pkl
+│   │   │   └── vectorizer.pkl
 │   │   └── training_history/
-│   │       └── runs.json        # history of all training runs
+│   │       └── runs.json
+│   ├── migrations/
 │   ├── scripts/
-│   │   ├── prepare_and_train.py # full ML pipeline with SSE streaming
-│   │   └── seed_db.py           # seeds admin/analyst/user accounts
-│   ├── migrations/              # Alembic database migrations
-│   ├── requirements.txt
-│   └── run.py                   # Flask entry point (exports `app`)
+│   │   ├── seed_db.py
+│   │   └── prepare_and_train.py
+│   └── tests/
 ├── frontend/
-│   ├── pages/                   # HTML pages
+│   ├── pages/
 │   │   ├── login.html
 │   │   ├── dashboard.html
-│   │   ├── analyzer.html        # email detection UI
-│   │   ├── chatbot.html         # security chat
-│   │   ├── history.html         # scan history
+│   │   ├── analyzer.html
+│   │   ├── chatbot.html
+│   │   ├── history.html
 │   │   ├── admin_alerts.html
 │   │   ├── admin_users.html
 │   │   ├── quarantine.html
 │   │   ├── reports.html
-│   │   ├── ml_dashboard.html    # ML monitoring + retrain UI
-│   │   └── status.html          # public system status page
+│   │   ├── ml_dashboard.html
+│   │   ├── status.html
+│   │   ├── forgot-password.html
+│   │   └── reset-password.html
 │   ├── css/
-│   │   ├── variables.css        # design tokens (colours, fonts)
-│   │   ├── base.css
-│   │   ├── components.css
-│   │   ├── layout.css           # topbar, sidebar, main grid
-│   │   ├── animations.css
-│   │   └── pages.css
-│   ├── js/
-│   │   ├── auth.js              # Auth object, login/logout
-│   │   ├── api.js               # API wrapper
-│   │   ├── utils.js             # shared utilities
-│   │   └── admin.js             # admin page logic
-│   └── _redirects               # Cloudflare Pages API proxy rule
+│   └── js/
 ├── nginx/
-│   └── nginx.conf               # reverse proxy config
-├── Dockerfile                   # builds backend + frontend into one image
-├── docker-compose.yml           # local stack: app + db + redis + nginx
-├── entrypoint.sh                # wait for DB → migrate → seed → gunicorn
-├── pg-git.sh                    # git workflow automation script
-└── pg-docker.sh                 # Docker Hub push/pull automation script
+├── docs/
+├── scripts/
+├── docker-compose.yml
+├── Dockerfile
+└── entrypoint.sh
 ```
 
 ---
 
-## Design System (Frontend)
+## Where The App Is Right Now
 
-The app uses a dark cybersecurity aesthetic with these CSS variables:
+The current repo is no longer just a simple phishing detector. It is already a
+multi-surface application with user auth, scan history, admin operations,
+reporting, ML operations, and public system health visibility.
 
-```css
---bg:          #0a0c0f      /* page background */
---surface:     #111418      /* card/panel background */
---surface2:    #181c22      /* nested surfaces */
---border:      #1e2530      /* borders */
---text:        #c8d6e8      /* primary text */
---text-dim:    #5a6a80      /* secondary text */
---accent:      #00d4ff      /* cyan — primary accent */
---danger:      #ff3b5c      /* red — phishing/errors */
---warn:        #ffaa00      /* amber — warnings */
---safe:        #00e676      /* green — safe/success */
---font-mono:   'Space Mono', monospace
---font-sans:   'Syne', sans-serif
---topbar-h:    56px
---sidebar-w:   200px
-```
+### Working product areas visible in the codebase
 
-Every page loads these six CSS files in order:
-`variables.css, base.css, components.css, layout.css, animations.css, pages.css`
+- User self-registration and login
+- JWT-protected session flow with `/api/auth/me`
+- Forgot-password and reset-password flow
+- Email text scanning through `/api/detect`
+- `.eml` upload parsing and scanning through `/api/detect/upload`
+- Scan history for the logged-in user
+- Rule-based security chatbot with topic suggestions
+- Admin and analyst dashboard views
+- Alerts workflow with acknowledge and resolve actions
+- User administration with create, patch, deactivate, reactivate, and delete
+- Reports endpoints for summary, timeline, top senders, and export
+- ML dashboard endpoints for model status, history, production stats, and retraining
+- SSE training stream for live retraining logs
+- Public system status endpoint at `/api/health/status`
 
----
+### Frontend pages that currently exist
 
-## Authentication System
+- `/login`
+- `/dashboard`
+- `/detect`
+- `/chat`
+- `/history`
+- `/alerts`
+- `/quarantine`
+- `/users`
+- `/reports`
+- `/ml-dashboard`
+- `/status`
+- `/forgot-password`
+- `/reset-password`
 
-- JWT tokens stored in `localStorage` as `pg_token`
-- User object stored in `localStorage` as `pg_user` (JSON with `.username` and `.role`)
-- Three roles: `admin`, `analyst`, `user`
-- Seed credentials: `admin/Admin123!`, `analyst1/Analyst123!`, `sarah/Sarah1234!`
-- Auth helpers: `require_auth` decorator, `get_current_user()` in `auth_helpers.py`
-- Admin pages check `user.role === 'admin'` in JavaScript and redirect if not admin
+### Current frontend architecture
 
----
-
-## ML Model — Current State
-
-- Algorithm: Random Forest classifier
-- Training dataset: 8,944 emails (4,472 phishing + 4,472 safe, balanced)
-  - SpamAssassin spam folder (500 emails)
-  - SpamAssassin easy_ham folder (2,551 emails)
-  - fraudulent_emails.txt (3,972 419/advance-fee fraud emails)
-- Features: 5,035 total (5,000 TF-IDF + 35 hand-engineered)
-- Results: 98.4% accuracy, 99.9% precision, 96.9% recall, 98.4% F1, 0.9993 ROC-AUC
-- Training time: 7.5 seconds
-- Model files: `model.pkl` (4.3MB), `vectorizer.pkl` (6MB) — gitignored
-- Metadata: `metadata.json` — committed to git
-- Training script: `backend/scripts/prepare_and_train.py --stream` (supports SSE)
-- Key class: `PhishingModelTrainer` in `backend/ml/trainer.py`
-  - `trainer.train(emails, labels)` → metrics dict
-  - `trainer.predict(email_text)` → prediction dict
-  - `trainer.save(directory)` → saves pkl files
+- Protected pages share a common shell from `frontend/js/core/app-shell.js`
+- Navigation is role-aware
+- Theme controls are centralized
+- API calls are centralized in `frontend/js/api.js`
+- The frontend is framework-free on purpose
 
 ---
 
-## API Routes Reference
+## Verified Current ML State
 
-```
-POST /api/auth/login              → JWT login
-POST /api/auth/register           → create account
-POST /api/auth/forgot-password    → send reset email
-POST /api/auth/reset-password     → confirm reset
+The local workspace currently contains all three saved model artifacts:
 
-POST /api/detect                  → scan email text
-POST /api/detect/upload           → scan .eml file
-GET  /api/scans/history           → user's scan history
+- `backend/ml/saved_models/metadata.json`
+- `backend/ml/saved_models/model.pkl`
+- `backend/ml/saved_models/vectorizer.pkl`
 
-POST /api/chat                    → AI security chat
+Current metadata snapshot:
 
-GET  /api/admin/users             → list users (admin)
-PUT  /api/admin/users/<id>/role   → change role (admin)
-DELETE /api/admin/users/<id>      → delete user (admin)
-GET  /api/admin/alerts            → list alerts (admin)
-PUT  /api/admin/alerts/<id>       → update alert status (admin)
+- Model name: `random_forest`
+- Trained at: `2026-03-13T05:52:26.858506`
+- Accuracy: `0.9838`
+- Precision: `0.9988`
+- Recall: `0.9687`
+- F1 score: `0.9835`
+- ROC-AUC: `0.9993`
+- TF-IDF features: `5000`
+- Total features: `5035`
+- Training samples: `7155 train / 1789 test`
+- Training time: `7.17s`
 
-GET  /api/reports/summary         → report data (admin)
+Training history currently shows 2 recorded runs in
+`backend/ml/training_history/runs.json`.
 
-GET  /api/ml/status               → current model metadata + metrics
-GET  /api/ml/history              → all training run history
-GET  /api/ml/production-stats     → scan stats from DB
-POST /api/ml/retrain              → trigger retraining (admin)
-GET  /api/ml/retrain/stream       → SSE training log stream
-GET  /api/health                  → simple health check (public)
-GET  /api/health/status           → full system component health (public)
-```
+The feature set includes URL, urgency, impersonation, HTML, attachment, and
+brand-pattern signals in addition to TF-IDF.
 
 ---
 
-## Blueprint Registration (CRITICAL)
+## Current Route Inventory
 
-`ml_dashboard_bp` is registered WITHOUT a url_prefix because its routes
-already include `/api/` internally. All other blueprints have prefixes:
+### Auth
 
-```python
-app.register_blueprint(ml_dashboard_bp)                      # no prefix
-app.register_blueprint(auth_bp,    url_prefix="/api/auth")
-app.register_blueprint(detect_bp,  url_prefix="/api")
-app.register_blueprint(chat_bp,    url_prefix="/api/chat")
-app.register_blueprint(admin_bp,   url_prefix="/api/admin")
-app.register_blueprint(reports_bp, url_prefix="/api")
-app.register_blueprint(frontend_bp)                          # no prefix
-```
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/auth/me`
+- `POST /api/auth/logout`
+- `POST /api/auth/forgot-password`
+- `POST /api/auth/reset-password`
 
----
+### Detection
 
-## Environment Variables Required
+- `POST /api/detect`
+- `POST /api/detect/upload`
+- `GET /api/scans/history`
 
-```bash
-# Core
-FLASK_ENV=production              # or development
-SECRET_KEY=<64-char hex>          # signs JWT tokens
+### Chat
 
-# Database
-DATABASE_URL=postgresql://user:pass@host:5432/dbname?sslmode=require
+- `POST /api/chat`
+- `GET /api/chat/topics`
 
-# Cache
-REDIS_URL=rediss://user:pass@host:port
+### Admin and analyst operations
 
-# Email
-MAIL_SERVER=smtp.resend.com       # or smtp.mailtrap.io for dev
-MAIL_PORT=587
-MAIL_USERNAME=resend
-MAIL_PASSWORD=<resend-api-key>
+- `GET /api/admin/dashboard`
+- `GET /api/admin/scans`
+- `GET /api/admin/scans/<id>`
+- `PATCH /api/admin/scans/<id>`
+- `GET /api/admin/alerts`
+- `POST /api/admin/alerts/<id>/acknowledge`
+- `POST /api/admin/alerts/<id>/resolve`
+- `GET /api/admin/users`
+- `POST /api/admin/users`
+- `GET /api/admin/users/<id>`
+- `PATCH /api/admin/users/<id>`
+- `POST /api/admin/users/<id>/deactivate`
+- `POST /api/admin/users/<id>/reactivate`
+- `DELETE /api/admin/users/<id>`
 
-# Integrations
-VIRUSTOTAL_API_KEY=<key>
+### Reports
 
-# Railway specific
-PORT=5000
-```
+- `GET /api/reports/summary`
+- `GET /api/reports/timeline`
+- `GET /api/reports/top-senders`
+- `GET /api/reports/export`
 
----
+### ML operations
 
-## The Four Environments and Their Relationships
+- `GET /api/ml/status`
+- `GET /api/ml/history`
+- `GET /api/ml/production-stats`
+- `POST /api/ml/retrain`
+- `GET /api/ml/retrain/stream`
 
-**Local Python** (`python3 backend/run.py`)
-- Reads `.env` file from project root
-- Uses `.venv` Python packages
-- Connects to whatever DATABASE_URL says (usually SQLite or local Postgres)
-- Fast iteration, no Docker overhead
-- Use for: writing code, debugging logic
+### Health
 
-**Local Docker** (`docker-compose up --build`)
-- Builds from `Dockerfile`, copies files at build time
-- Has its own PostgreSQL and Redis containers
-- Does NOT auto-reload on file changes (requires rebuild)
-- Closest to production environment locally
-- Use for: testing infrastructure changes, nginx config, entrypoint changes
-
-**GitHub** (git push)
-- Source of truth for all code
-- Does NOT run anything
-- Triggers Railway auto-deploy on push to `main` branch
-- `.env`, `*.pkl` model files, datasets are gitignored
-
-**Railway** (production cloud)
-- Builds from GitHub repo automatically on push to `main`
-- Reads environment variables from Railway dashboard
-- Backend URL: `https://phishguard-production-2290.up.railway.app`
-- Database: Supabase PostgreSQL
-- HTTPS provided automatically via Let's Encrypt
+- `GET /api/health`
+- `GET /api/health/status`
 
 ---
 
-## Current State of the Project (as of March 2026)
+## Blueprint And Routing Notes
 
-### What Works
-- Full Flask backend with JWT auth, email scanning, ML detection
-- PostgreSQL database with migrations and seed data
-- ML model trained and working locally (98.4% accuracy)
-- Docker containerisation working locally
-- Railway deployment live at `phishguard-production-2290.up.railway.app`
-- Supabase PostgreSQL connected to Railway — migrations ran, users seeded
-- HTTPS working automatically on Railway
-- `/api/health` returns 200 on Railway
-- ML retraining pipeline with live SSE log streaming
+This part is important because it is easy for future collaborators to get
+confused here.
 
-### What Is Broken / Incomplete
-1. **Local environment** — project moved from `~/code/phishguard` to
-   `~/Desktop/Active_projects/phishguard`. The `.venv` is broken (activates
-   but `which python3` still shows system Python). No `.env` file exists.
-   App cannot boot locally.
+- `ml_dashboard_bp` is registered with no `url_prefix`
+- Its routes already include `/api/...` in the route definitions
+- `auth_bp` uses `url_prefix="/api/auth"`
+- `detect_bp` uses `url_prefix="/api"`
+- `chat_bp` uses `url_prefix="/api/chat"`
+- `admin_bp` uses `url_prefix="/api/admin"`
+- `reports_bp` uses `url_prefix="/api"`
+- `frontend_bp` serves page routes like `/dashboard`, `/reports`, and `/status`
 
-2. **ML routes on Railway** — `/api/ml/status` and `/api/health/status`
-   return `{"error":"not_found"}` because `model.pkl` and `vectorizer.pkl`
-   are gitignored and not present in the Railway container. `metadata.json`
-   was just committed but the pkl files need a storage solution.
+Both Flask and nginx participate in routing depending on the environment:
 
-3. **Sidebar collapse** — CSS and JS were added to implement a collapsible
-   sidebar but nav item text nodes were not wrapped in `<span>` tags in
-   two files (`chatbot.html`, `reports.html`), so those pages do not
-   collapse properly.
-
-4. **CORS** — `access-control-allow-origin` is hardcoded to
-   `https://yourdomain.com` in the Flask config. Needs to be updated to
-   allow Railway URL and future Cloudflare Pages URL.
-
-5. **Cloudflare Pages** — not set up yet. Frontend is not deployed to CDN.
-   `_redirects` file was created to proxy `/api/*` to Railway.
-
-6. **Upstash Redis** — `REDIS_URL` not set in Railway. Rate limiting
-   falls back to in-memory.
-
-7. **Resend email** — mail variables not set in Railway. Password reset
-   emails do not send in production.
-
-8. **Model persistence** — no strategy for storing `model.pkl` in production.
-   Planned solution: Supabase Storage download on container startup (v0.8.0).
+- Flask can serve the frontend pages directly via `frontend_routes.py`
+- Docker/nginx can also serve the page files directly and proxy API requests
 
 ---
 
-## Immediate Priority — Fix Local Environment
+## Current Environment Model
 
-Before touching cloud or GitHub, the local environment must be fixed first.
-The workflow is always: fix locally → test locally → commit → push → verify
-on Railway.
+### Local Python
 
-Steps needed:
-1. Rebuild the `.venv` properly using the correct Python version
-2. Create a `.env` file with development values
-3. Verify `python3 backend/run.py` boots cleanly
-4. Verify Docker boots cleanly with `docker-compose up --build`
-5. Then commit any unstaged changes and push to Railway
+- Default DB path resolves to SQLite under `backend/instance/`
+- `backend/run.py` now includes fail-fast guidance if the wrong Python or a bad
+  virtualenv is used
+- This is the simplest path for day-to-day feature work
 
-Current unstaged changes (not yet committed):
-- `backend/app/__init__.py`
-- `frontend/css/layout.css`
-- All HTML pages in `frontend/pages/`
-- `nginx/nginx.conf`
-- `scripts/train_model.py`
-- New files: `ml_dashboard.py`, `prepare_and_train.py`, `ml_dashboard.html`,
-  `status.html`, `pg-docker.sh`
+### Local Docker
 
----
+- Uses `docker-compose.yml`
+- Runs app + PostgreSQL + Redis + nginx
+- Expects `backend/.env`
+- Is the best local approximation of the full stack
 
-## Version Roadmap
+### Production-style behavior from config
 
-```
-v0.7.0  ✅ Docker + PostgreSQL + Redis + Nginx + ML dashboard
-v0.8.0  🔨 Pre-Production Hardening  ← CURRENT VERSION
-            - Fix local environment (IN PROGRESS)
-            - Cloudflare Pages frontend deployment
-            - Upstash Redis connection
-            - Resend email for production
-            - CORS configuration fix
-            - ML model persistence (Supabase Storage)
-            - Sentry error monitoring
-            - Structured JSON logging
-            - Health check wired to Railway restart policy
-v0.9.0  User Self-Registration + Free Tier Enforcement
-            - Public signup page
-            - Email verification on registration
-            - Scan limits per role (free: 10/day, paid: unlimited)
-            - Upgrade prompt UI
-v0.10.0 Public URL Scanner
-            - No-login scanner at /scan (public landing page)
-            - Scan a URL for phishing indicators
-            - Rate limited by IP
-            - Conversion funnel to signup
-v0.11.0 Email Header Forensics
-            - Parse SPF, DKIM, DMARC headers from .eml files
-            - Show pass/fail per authentication check
-            - Explain what each check means in plain language
-v0.12.0 SMS and WhatsApp Text Analysis
-            - Paste SMS text for phishing detection
-            - Detect smishing patterns (urgency, fake URLs, prize scams)
-            - Adapted ML features for short-form text
-v0.13.0 Audit Log and Compliance
-            - Every admin action logged with timestamp and user
-            - Exportable audit trail (CSV/PDF)
-            - Retention policy settings
-v0.14.0 MITRE ATT&CK Mapping
-            - Tag each detected phishing email with ATT&CK technique IDs
-            - Show attack pattern explanations
-            - Dashboard showing most common techniques seen
-v0.15.0 Threat Intelligence Dashboard + Kenya Phishing Database
-            - Aggregate scan data into threat trends
-            - Kenya-specific phishing campaign tracking
-            - M-Pesa, KRA, Safaricom impersonation detection
-            - Public threat feed API
-v0.16.0 ML Retraining Pipeline (automated)
-            - Scheduled weekly retraining on new confirmed phishing emails
-            - Model performance regression detection
-            - Automatic rollback if new model performs worse
-            - Admin notification on retrain completion
-v1.0.0  Browser Extension + Gmail Integration
-            - Chrome extension that scans emails in Gmail in real time
-            - One-click report to PhishGuard
-            - Highlight suspicious links in browser
-            - Gmail API integration for batch scanning
-```
+- PostgreSQL is used whenever `DATABASE_URL` is set
+- Redis-backed limiting is used when `REDIS_URL` is set
+- Email and VirusTotal integrations depend on env vars
+- CORS is open in base config and restricted via `FRONTEND_URL` in production
 
 ---
 
-## Key Conventions and Patterns
+## Current Tests And Docs
 
-**Response format** — all API responses use:
-```python
-from app.utils.responses import success, error, created
-return success(data={"key": "value"})   # {"status":"success","data":{...}}
-return error("message", 400)             # {"error":"...", "message":"..."}
-```
+### Tests
 
-**Auth decorator** — protect routes with:
-```python
-from app.utils.auth_helpers import require_auth, get_current_user
+The backend has a real pytest structure:
 
-@bp.route("/endpoint")
-@require_auth
-def endpoint():
-    user = get_current_user()
-```
+- `backend/tests/conftest.py`
+- `backend/tests/test_auth.py`
+- `backend/tests/test_routes.py`
 
-**Frontend API calls** — all pages use:
-```javascript
-const token = () => localStorage.getItem('pg_token');
-const hdrs  = () => ({ 'Authorization': `Bearer ${token()}` });
-fetch('/api/endpoint', { headers: hdrs() })
-```
+Notes:
 
-**Git commit convention**:
-```
-feat: add new feature
-fix: fix a bug
-chore: maintenance, cleanup
-docs: documentation
-refactor: restructure without behaviour change
-```
+- The current shell session did not have `pytest` installed, so tests were not
+  executed during this refresh
+- `backend/tests/test_detector.py` and `backend/tests/test_chatbot.py` are
+  currently empty placeholders
 
-**Branch strategy**:
-- `main` — production, Railway deploys from this
-- `dev` — active development
-- Always develop on `dev`, merge to `main` when stable
+### Docs
+
+The repo has useful docs under `docs/`, but some top-level documentation still
+lags behind the implementation. Treat this catch-up prompt and the source code
+as the highest-trust references.
 
 ---
 
-## What to Ask the Developer Before Helping
+## Important Current Gaps Or Inconsistencies
 
-1. Which environment are we working in? (local Python / local Docker / Railway)
-2. What is the current error or symptom?
-3. Has the app been working at any point recently? When did it break?
-4. Are we fixing something existing or building something new?
+These are the main "do not get misled" items for future work:
 
-Always fix local first. Never edit files directly in Docker or on Railway.
-Always commit before pushing to Railway. Always test in Docker before committing
-infrastructure changes.
+1. Version labels are inconsistent across the project.
+   - `/api/health` reports version `1.0.0`
+   - `/api/health/status` defaults to `v0.7.0`
+   - older roadmap text referenced `v0.8.0`
+
+2. Some docs and comments still point to old paths like `~/code/phishguard`
+   even though the current repo path is
+   `/home/shwn/Desktop/Active_projects/phishguard`.
+
+3. The old assumption that model artifacts were missing is not true for this
+   local workspace. The `.pkl` files are present locally right now.
+
+4. The old Cloudflare Pages and `_redirects` framing does not match the current
+   repo layout. There is no frontend `_redirects` file in the repo at present.
+
+5. Production readiness still depends on environment configuration:
+   Redis, mail delivery, VirusTotal, and deployment-specific model persistence
+   are all env-sensitive.
+
+6. README and older catch-up notes understate how much operational UI and admin
+   functionality now exists.
+
+---
+
+## Practical Development Direction From Here
+
+If continuing development now, the next highest-value direction is:
+
+1. Keep building on the existing full-stack app, not restarting architecture
+2. Sync versioning and stale docs so the repo tells one coherent story
+3. Expand test coverage around detection, chatbot, reports, and admin flows
+4. Harden environment setup so local Python, Docker, and production are easier
+   to move between
+5. Continue product features on top of the existing foundations:
+   better analyst workflows, richer reports, improved retraining lifecycle,
+   and future integrations
+
+Good immediate product areas to extend safely:
+
+- quarantine workflow depth
+- alert triage UX
+- report exports and analytics
+- training data feedback loops
+- team and enterprise controls
+- external email integrations
+
+---
+
+## Conventions Worth Preserving
+
+- Keep routes thin and push real behavior into services
+- Use the existing response helpers from `app.utils.responses`
+- Keep auth and role checks on the server even if the UI hides controls
+- Prefer educational comments that explain why, not only what
+- Preserve the vanilla frontend architecture unless there is a strong reason to
+  introduce a framework
+- Treat the ML model as one layer in a defense-in-depth system, not the entire
+  truth of the app
+
+---
+
+## Refresh Log: What Changed From The Original Catch-Up Prompt
+
+This is the short "what became stale" summary.
+
+- The repo is currently clean. There are no unstaged local changes.
+- The app now has more complete frontend coverage than the original prompt
+  described, including history, password reset pages, ML dashboard, and public
+  status pages.
+- Admin functionality is broader than originally documented:
+  create user, patch user, deactivate/reactivate, hard delete, and patch scan
+  status are all present.
+- Reports are broader than originally documented:
+  summary, timeline, top senders, and export all exist.
+- The current codebase supports SQLite-by-default for local Python runs and
+  PostgreSQL in Docker or production-style environments.
+- The local workspace currently includes `model.pkl` and `vectorizer.pkl`; the
+  old "missing model files locally" note should not be reused blindly.
+- The old Cloudflare Pages `_redirects` note is no longer grounded in the repo.
+- The app shell has been centralized in `frontend/js/core/app-shell.js`, so
+  older page-by-page navigation assumptions are outdated.
+- The biggest source of confusion now is not missing features, but stale docs,
+  inconsistent version labels, and environment-specific behavior.
+
+---
+
+## Best Starting Point For Any New AI Collaborator
+
+Read in this order:
+
+1. This file
+2. `backend/app/__init__.py`
+3. `backend/app/config.py`
+4. `backend/app/routes/auth.py`
+5. `backend/app/routes/detect.py`
+6. `backend/app/routes/admin.py`
+7. `backend/app/routes/ml_dashboard.py`
+8. `backend/app/services/detector.py`
+9. `frontend/js/core/app-shell.js`
+10. `frontend/js/api.js`
+
+If docs and code disagree, trust the code.
