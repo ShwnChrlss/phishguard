@@ -40,26 +40,25 @@ RUN apt-get update && apt-get install -y \
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# SECURITY: Don't run as root
+# Create the runtime user before copying app code so we can assign
+# ownership during COPY instead of doing a slow recursive chown later.
+RUN useradd -m -u 1000 phishguard
+
 # APPLICATION CODE
 # Copy the backend application into the container.
-COPY backend/ .
+COPY --chown=phishguard:phishguard backend/ .
 
 # FRONTEND
 # Nginx serves static files directly, but Flask also needs
 # the frontend path for its frontend_routes.py blueprint.
-COPY frontend/ /app/frontend/
+COPY --chown=phishguard:phishguard frontend/ /app/frontend/
 
 # ENTRYPOINT SCRIPT
 # A shell script that runs migrations then starts Gunicorn.
 # Must be executable.
-COPY entrypoint.sh /entrypoint.sh
+COPY --chown=phishguard:phishguard entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
-
-# SECURITY: Don't run as root
-# Running as root inside a container is a security risk.
-# If an attacker escapes the container, they'd be root on the host.
-RUN useradd -m -u 1000 phishguard && \
-    chown -R phishguard:phishguard /app
 USER phishguard
 
 # EXPOSE
