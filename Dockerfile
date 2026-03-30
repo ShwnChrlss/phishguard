@@ -63,9 +63,14 @@ RUN useradd -m -u 1000 phishguard && \
 USER phishguard
 
 # EXPOSE
-# Documents which port the app listens on.
-# Does NOT actually publish the port — that's docker-compose's job.
-EXPOSE 5000
+# Railway routes traffic to the port your container advertises.
+# In production Railway injects PORT=8080, and Gunicorn binds to that
+# value in entrypoint.sh. Expose 8080 here so Railway and the app agree.
+#
+# Local docker-compose still works because it explicitly targets port 5000
+# on the container network, and Gunicorn keeps using 5000 locally when
+# PORT is not set.
+EXPOSE 8080
 
 # ENTRYPOINT
 # Runs our shell script instead of starting gunicorn directly.
