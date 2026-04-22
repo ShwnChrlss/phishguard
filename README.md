@@ -332,13 +332,7 @@ python3 backend/run.py
 # http://localhost:5000
 ```
 
-### Default accounts
-
-| Username | Password | Role |
-|---|---|---|
-| admin | Admin123! | Admin |
-| analyst1 | Analyst123! | Analyst |
-| sarah | Sarah1234! | User |
+# Default accounts are configured via environment variables. See 'docs/01_setup.md' for set up instructions
 
 ---
 
