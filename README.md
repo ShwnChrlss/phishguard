@@ -297,8 +297,8 @@ The highest-impact improvement: implement the v1.1.0 retraining pipeline. Every 
 ### Install
 
 ```bash
-git clone https://github.com/ShwnChrlss/phishguard.git
-cd phishguard
+git clone https://github.com/ShwnChrlss/PhishGuard.git
+cd PhishGuard
 
 python3 -m venv .venv
 source .venv/bin/activate
