@@ -1,0 +1,6 @@
+*.md linguist-documentation=true
+docs/* linguist-documentation=true
+data/* linguist-documentation=true
+scripts/* linguist-documentation=true
+nginx/* linguist-documentation=true
+*.sh linguist-documentation=true
